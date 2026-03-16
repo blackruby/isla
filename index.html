@@ -779,14 +779,11 @@
 //  DATOS GLOBALES
 // ═══════════════════════════════════════════
 
-const CLIENTES = [
-  { id: 1, nombre: 'Ana García' },
-  { id: 2, nombre: 'Carlos López' },
-  { id: 3, nombre: 'María Fernández' },
-  { id: 4, nombre: 'Juan Martínez' },
-  { id: 5, nombre: 'Laura Sánchez' },
-  { id: 6, nombre: 'Pedro Ruiz' },
-];
+const UPSTASH_URL   = 'https://immortal-wasp-60886.upstash.io';
+const UPSTASH_TOKEN = 'Ae3WAAIncDFiMWI4ODFhMGNjNmY0YjE1YjA3NzQ0ZTYyZWU0YmZjZXAxNjA4ODY';
+
+// CLIENTES se carga dinámicamente desde Redis; esta variable se rellena en cada apertura
+var CLIENTES = [];
 
 const PRODUCTOS = [
   { id:  1, descripcion: 'Café solo',          precio: 1.20 },
@@ -850,13 +847,49 @@ function goHome() {
 //  PANTALLA: NUEVA CONSUMICIÓN
 // ═══════════════════════════════════════════
 
-function nuevaConsumicion() {
+async function nuevaConsumicion() {
+  showScreen('screen-nueva', 'nav-nueva');
+
+  // Mostrar estado de carga en la tabla
+  var tbody = document.getElementById('clientes-tbody');
+  tbody.innerHTML =
+    '<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">' +
+    '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;margin-right:6px;opacity:.6">sync</span>' +
+    'Cargando clientes…</td></tr>';
+
+  // Obtener clientes desde Upstash Redis
+  try {
+    var resp = await fetch(UPSTASH_URL + '/get/clientes', {
+      headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var data = await resp.json();
+
+    // data.result es el string "Nombre1,Nombre2,…" o null si la clave no existe
+    var nombres = data.result
+      ? data.result.split(',').map(function(n) { return n.trim(); }).filter(Boolean)
+      : [];
+
+    if (nombres.length === 0) throw new Error('La clave "clientes" está vacía o no existe');
+
+    // Construir array global CLIENTES
+    CLIENTES = nombres.map(function(nombre, i) { return { id: i + 1, nombre: nombre }; });
+
+  } catch (err) {
+    tbody.innerHTML =
+      '<tr><td colspan="3" style="text-align:center;padding:24px;color:#f07070;font-size:13px;">' +
+      '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;margin-right:6px;">error_outline</span>' +
+      'Error al cargar clientes: ' + err.message + '</td></tr>';
+    console.error('Upstash error:', err);
+    return;
+  }
+
+  // Resetear importes
   importes = {};
   CLIENTES.forEach(function(c) { importes[c.id] = 0; });
 
-  var tbody = document.getElementById('clientes-tbody');
+  // Construir tabla
   tbody.innerHTML = '';
-
   CLIENTES.forEach(function(cliente) {
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -877,7 +910,6 @@ function nuevaConsumicion() {
   });
 
   actualizarTotal();
-  showScreen('screen-nueva', 'nav-nueva');
 }
 
 function onImporteChange(clienteId, valor) {
