@@ -1273,8 +1273,8 @@ var _datosPendientes = null;
 // Obtiene todas las claves que empiezan por "0" y devuelve un array
 // con el valor (objeto) de cada una de ellas
 function obtenerHistorial() {
-  // SCAN con MATCH 0* para obtener las claves
-  return fetch(UPSTASH_URL + '/scan/0?match=0*&count=1000', {
+  // KEYS * trae todas las claves de golpe; filtramos las que empiezan por "0"
+  return fetch(UPSTASH_URL + '/keys/*', {
     headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
   })
   .then(function(r) {
@@ -1282,8 +1282,9 @@ function obtenerHistorial() {
     return r.json();
   })
   .then(function(data) {
-    // data.result = [cursor, [clave1, clave2, ...]]
-    var claves = (data.result && data.result[1]) ? data.result[1] : [];
+    var claves = (data.result || []).filter(function(k) {
+      return k.charAt(0) >= '0' && k.charAt(0) <= '9';
+    });
     if (claves.length === 0) return [];
 
     // MGET para traer todos los valores de golpe
@@ -1292,7 +1293,6 @@ function obtenerHistorial() {
     })
     .then(function(r) { return r.json(); })
     .then(function(mdata) {
-      // mdata.result es un array de strings (o null); parseamos cada uno
       return (mdata.result || []).map(function(val) {
         if (!val) return null;
         try { return JSON.parse(val); } catch(e) { return null; }
@@ -1346,7 +1346,7 @@ function confirmarPago() {
 
   var ahora = new Date();
   function pad(n) { return String(n).padStart(2, '0'); }
-  var clave = '0' +
+  var clave =
     String(ahora.getFullYear()).slice(-2) +
     pad(ahora.getMonth() + 1) +
     pad(ahora.getDate()) +
