@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a1a2e" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>MiApp</title>
+  <title>LaIsla</title>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
   <style>
@@ -172,6 +172,7 @@
       width: 100%;
       position: relative;
       overflow: hidden;
+      color: var(--text);
     }
     .action-btn:active {
       transform: scale(.97);
@@ -278,16 +279,73 @@
     .screen.active .action-btn:nth-child(5) { animation-delay: .18s; }
 
     /* ─── Nueva consumición ─────────────────── */
+    #screen-nueva {
+      overflow: hidden; /* el scroll lo hace solo la tabla */
+    }
     #screen-nueva .inner-screen {
-      padding-top: 20px;
+      padding: 16px 20px 0;
+      overflow: hidden;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
+    /* zona scrollable: solo la card de clientes */
     .consumicion-card {
       background: var(--surface);
       border-radius: var(--radius);
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      flex: 1;          /* ocupa todo el espacio disponible */
+      min-height: 0;    /* necesario para que flex respete el overflow */
       border: 1.5px solid rgba(255,255,255,.06);
     }
+
+    /* barra fija inferior (total + botones) */
+    .nueva-footer {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-bottom: calc(var(--nav-h) + 12px + var(--safe-bottom));
+    }
+
+    /* check de terraza */
+    .terraza-toggle {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 12px 16px;
+      border: 1.5px solid rgba(255,255,255,.06);
+      cursor: pointer;
+      -webkit-user-select: none; user-select: none;
+      flex-shrink: 0;
+    }
+    .terraza-toggle:active { background: var(--surface2); }
+    .terraza-check {
+      width: 24px; height: 24px;
+      border-radius: 7px;
+      border: 2px solid var(--text-muted);
+      display: grid; place-items: center;
+      flex-shrink: 0;
+      transition: background .15s, border-color .15s;
+    }
+    .terraza-check .material-icons-round { font-size: 16px; color: #fff; display: none; }
+    .terraza-toggle.checked .terraza-check {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .terraza-toggle.checked .terraza-check .material-icons-round { display: block; }
+    .terraza-text { flex: 1; }
+    .terraza-label { font-size: 14px; font-weight: 700; }
+    .terraza-precio {
+      font-size: 12px; font-weight: 600; color: var(--text-muted); margin-top: 1px;
+    }
+    .terraza-toggle.checked .terraza-precio { color: var(--accent-light); }
 
     .clientes-table {
       width: 100%;
@@ -541,6 +599,107 @@
     .prod-stepper:not(.has-qty) .step-minus { opacity: .3; pointer-events: none; }
     .prod-stepper:not(.has-qty) .step-qty   { color: var(--text-muted); }
 
+    /* ─── Modal de pago ─────────────────────── */
+    .pago-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      backdrop-filter: blur(6px);
+    }
+    .pago-overlay.open { display: flex; }
+
+    .pago-dialog {
+      background: var(--surface);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 360px;
+      padding: 28px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeUp .2s ease;
+      border: 1.5px solid rgba(255,255,255,.07);
+    }
+    .pago-dialog-header {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .pago-dialog-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, var(--accent), #9b59f5);
+      border-radius: 16px;
+      display: grid; place-items: center;
+      font-size: 26px;
+      margin-bottom: 4px;
+    }
+    .pago-dialog-title {
+      font-size: 18px; font-weight: 900; letter-spacing: -.02em;
+    }
+    .pago-dialog-total {
+      font-size: 36px; font-weight: 900; letter-spacing: -.04em;
+      color: var(--accent-light);
+    }
+
+    .pago-field label {
+      display: block;
+      font-size: 10px; font-weight: 800; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .pago-select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 15px; font-weight: 700;
+      padding: 12px 14px;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%238a88a8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .pago-select:focus { border-color: var(--accent); }
+    .pago-select option { background: #1c1c2e; }
+
+    .pago-actions {
+      display: flex; gap: 10px;
+    }
+    .pago-btn {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px;
+      padding: 13px 14px;
+      border-radius: 14px;
+      border: none;
+      font-family: 'Nunito', sans-serif;
+      font-size: 14px; font-weight: 800;
+      cursor: pointer;
+      transition: transform .12s, opacity .12s;
+      -webkit-user-select: none; user-select: none;
+    }
+    .pago-btn:active { transform: scale(.96); opacity: .85; }
+    .pago-btn-cancel {
+      background: var(--surface2);
+      color: var(--text-muted);
+      border: 1.5px solid rgba(255,255,255,.07);
+    }
+    .pago-btn-confirm {
+      background: linear-gradient(135deg, var(--accent) 0%, #9b59f5 100%);
+      color: #fff;
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    .pago-btn .material-icons-round { font-size: 18px; }
+
     /* pie del modal con subtotal y botón listo */
     .modal-footer {
       border-top: 1px solid rgba(255,255,255,.07);
@@ -585,6 +744,86 @@
     }
     .modal-done-btn:active { transform: scale(.96); opacity: .85; }
     .modal-done-btn .material-icons-round { font-size: 18px; }
+
+    /* ─── Tabla estadísticas ────────────────── */
+    #screen-estadisticas {
+      overflow: hidden;
+    }
+    #screen-estadisticas .inner-screen {
+      padding: 16px 20px 0;
+      overflow: hidden;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .stats-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      border: 1.5px solid rgba(255,255,255,.06);
+    }
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .stats-table thead th {
+      background: var(--surface2);
+      padding: 10px 10px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      text-align: right;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .stats-table thead th:first-child { text-align: left; }
+    .stats-table tbody tr {
+      border-top: 1px solid rgba(255,255,255,.05);
+      transition: background .1s;
+    }
+    .stats-table tbody tr:active { background: var(--surface2); }
+    .stats-table td {
+      padding: 10px 10px;
+      vertical-align: middle;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .stats-table td:first-child {
+      text-align: left;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .stats-table td.num { font-weight: 800; color: var(--text-muted); }
+    .stats-table td.num-accent { font-weight: 900; color: var(--accent-light); }
+    .stats-table tfoot td {
+      padding: 10px 10px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-top: 2px solid rgba(255,255,255,.1);
+      text-align: right;
+    }
+    .stats-table tfoot td:first-child { text-align: left; }
+    .stats-footer {
+      flex-shrink: 0;
+      padding-bottom: calc(var(--nav-h) + 12px + var(--safe-bottom));
+    }
+    .stats-loading {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; padding: 48px 24px;
+      color: var(--text-muted); font-size: 13px; font-weight: 600;
+    }
 
     /* ─── Desktop centering visual ──────────── */
     @media (min-width: 481px) {
@@ -656,7 +895,18 @@
         <h2>Nueva consumición</h2>
       </div>
 
-      <!-- Tabla de clientes -->
+      <!-- Check de terraza -->
+      <div class="terraza-toggle" id="terraza-toggle" onclick="toggleTerraza()">
+        <div class="terraza-check">
+          <span class="material-icons-round">check</span>
+        </div>
+        <div class="terraza-text">
+          <div class="terraza-label">Terraza</div>
+          <div class="terraza-precio" id="terraza-precio-label">Cargando…</div>
+        </div>
+      </div>
+
+      <!-- Tabla de clientes (scroll solo aquí) -->
       <div class="consumicion-card">
         <table class="clientes-table" id="clientes-table">
           <thead>
@@ -667,27 +917,26 @@
             </tr>
           </thead>
           <tbody id="clientes-tbody">
-            <!-- generado dinámicamente -->
           </tbody>
         </table>
       </div>
 
-      <!-- Total -->
-      <div class="total-bar">
-        <span class="total-label">TOTAL</span>
-        <span class="total-value" id="total-value">0,00 €</span>
-      </div>
-
-      <!-- Botones acción -->
-      <div class="form-actions">
-        <button class="fab-btn fab-cancel" onclick="cancelarConsumicion()">
-          <span class="material-icons-round">close</span>
-          Cancelar
-        </button>
-        <button class="fab-btn fab-confirm" onclick="confirmarConsumicion()">
-          <span class="material-icons-round">check_circle</span>
-          Confirmar
-        </button>
+      <!-- Footer fijo: total + botones -->
+      <div class="nueva-footer">
+        <div class="total-bar">
+          <span class="total-label">TOTAL</span>
+          <span class="total-value" id="total-value">0,00 €</span>
+        </div>
+        <div class="form-actions">
+          <button class="fab-btn fab-cancel" onclick="cancelarConsumicion()">
+            <span class="material-icons-round">close</span>
+            Cancelar
+          </button>
+          <button class="fab-btn fab-confirm" onclick="confirmarConsumicion()">
+            <span class="material-icons-round">check_circle</span>
+            Confirmar
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -720,6 +969,31 @@
     </div>
   </div>
 
+  <!-- ── MODAL: PAGO ── -->
+  <div id="pago-overlay" class="pago-overlay">
+    <div class="pago-dialog">
+      <div class="pago-dialog-header">
+        <div class="pago-dialog-icon">💳</div>
+        <div class="pago-dialog-title">¿Quién paga?</div>
+        <div class="pago-dialog-total" id="pago-total-label">0,00 €</div>
+      </div>
+      <div class="pago-field">
+        <label>Pagador</label>
+        <select class="pago-select" id="pago-select"></select>
+      </div>
+      <div class="pago-actions">
+        <button class="pago-btn pago-btn-cancel" onclick="cancelarPago()">
+          <span class="material-icons-round">close</span>
+          Cancelar
+        </button>
+        <button class="pago-btn pago-btn-confirm" onclick="confirmarPago()">
+          <span class="material-icons-round">check_circle</span>
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── SCREEN: HISTÓRICO ── -->
   <div id="screen-historico" class="screen">
     <div class="inner-screen">
@@ -741,10 +1015,28 @@
         <span class="material-icons-round" style="color:#f5b450">bar_chart</span>
         <h2>Estadísticas</h2>
       </div>
-      <div class="placeholder-card">
-        <div class="ph-icon">📊</div>
-        <p>Aquí se mostrarán los gráficos y estadísticas de consumo.</p>
+
+      <div class="stats-card" id="stats-card">
+        <div class="stats-loading" id="stats-loading">
+          <span class="material-icons-round" style="font-size:18px;opacity:.6">sync</span>
+          Cargando datos…
+        </div>
+        <table class="stats-table" id="stats-table" style="display:none">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Consumido</th>
+              <th>Pagado</th>
+              <th>Invitado</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="stats-tbody"></tbody>
+          <tfoot id="stats-tfoot"></tfoot>
+        </table>
       </div>
+
+      <div class="stats-footer"></div>
     </div>
   </div>
 
@@ -782,30 +1074,10 @@
 const UPSTASH_URL   = 'https://immortal-wasp-60886.upstash.io';
 const UPSTASH_TOKEN = 'Ae3WAAIncDFiMWI4ODFhMGNjNmY0YjE1YjA3NzQ0ZTYyZWU0YmZjZXAxNjA4ODY';
 
-// CLIENTES se carga dinámicamente desde Redis; esta variable se rellena en cada apertura
-var CLIENTES = [];
-
-const PRODUCTOS = [
-  { id:  1, descripcion: 'Café solo',          precio: 1.20 },
-  { id:  2, descripcion: 'Café cortado',        precio: 1.30 },
-  { id:  3, descripcion: 'Café con leche',      precio: 1.50 },
-  { id:  4, descripcion: 'Agua con gas',        precio: 1.50 },
-  { id:  5, descripcion: 'Caña de cerveza',     precio: 1.80 },
-  { id:  6, descripcion: 'Corto de cerveza',    precio: 1.50 },
-  { id:  7, descripcion: 'Botellín de cerveza', precio: 2.50 },
-  { id:  8, descripcion: 'Infusión',            precio: 1.20 },
-  { id:  9, descripcion: 'Mosto',               precio: 1.50 },
-  { id: 10, descripcion: 'Refresco',            precio: 2.00 },
-  { id: 11, descripcion: 'Sandwich',            precio: 3.50 },
-];
-
-const PRODUCTO_IMAGENES = {
-   1: '☕',  2: '☕',  3: '☕',
-   4: '💧',
-   5: '🍺',  6: '🍺',  7: '🍺',
-   8: '🫖',  9: '🍇',
-  10: '🥤', 11: '🥪',
-};
+// Se rellenan una sola vez al cargar la página
+var CLIENTES  = [];
+var PRODUCTOS = [];
+var PRECIO_TERRAZA = 0;
 
 // ═══════════════════════════════════════════
 //  ESTADO
@@ -814,9 +1086,11 @@ const PRODUCTO_IMAGENES = {
 var importes        = {};
 var clienteActivoId = null;
 var modalCounts     = {};
+var datosListos     = false;
+var terrazaActiva   = false;   // estado del toggle de terraza
 
 // ═══════════════════════════════════════════
-//  FECHA (sin reloj — el elemento #clock ya no existe)
+//  FECHA
 // ═══════════════════════════════════════════
 
 (function() {
@@ -826,6 +1100,77 @@ var modalCounts     = {};
   var hoy = new Date();
   var el  = document.getElementById('fecha-hoy');
   if (el) el.textContent = dias[hoy.getDay()] + ', ' + hoy.getDate() + ' de ' + meses[hoy.getMonth()];
+})();
+
+// ═══════════════════════════════════════════
+//  CARGA INICIAL DESDE UPSTASH (una sola vez)
+// ═══════════════════════════════════════════
+
+function redisGet(clave) {
+  return fetch(UPSTASH_URL + '/get/' + clave, {
+    headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' al leer "' + clave + '"');
+    return r.json();
+  })
+  .then(function(data) {
+    if (data.result === null) throw new Error('La clave "' + clave + '" no existe en Redis');
+    return JSON.parse(data.result);
+  });
+}
+
+function mostrarEstadoCarga(msg, esError) {
+  var color = esError ? '#f07070' : 'var(--text-muted)';
+  var icono = esError ? 'error_outline' : 'sync';
+  var html  =
+    '<tr><td colspan="3" style="text-align:center;padding:28px;color:' + color + ';font-size:13px;">' +
+    '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;margin-right:6px;opacity:.8">' + icono + '</span>' +
+    msg + '</td></tr>';
+  document.getElementById('clientes-tbody').innerHTML = html;
+}
+
+// Ejecutar al cargar la página
+(async function cargarDatos() {
+  // Mostrar indicador en la tabla (por si el usuario va rápido a "Nueva")
+  mostrarEstadoCarga('Cargando datos…', false);
+
+  try {
+    var resultados = await Promise.all([
+      redisGet('clientes'),
+      redisGet('productos'),
+      fetch(UPSTASH_URL + '/get/terraza', {
+        headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        return parseFloat(d.result) || 0;
+      })
+    ]);
+
+    CLIENTES        = resultados[0];
+    PRODUCTOS       = resultados[1];
+    PRECIO_TERRAZA  = resultados[2];
+
+    if (!Array.isArray(CLIENTES) || CLIENTES.length === 0)
+      throw new Error('El array de clientes está vacío');
+    if (!Array.isArray(PRODUCTOS) || PRODUCTOS.length === 0)
+      throw new Error('El array de productos está vacío');
+
+    // Actualizar label de terraza con el precio cargado
+    var lbl = document.getElementById('terraza-precio-label');
+    if (lbl) lbl.textContent = '+ ' + PRECIO_TERRAZA.toFixed(2).replace('.', ',') + ' € por producto';
+
+    datosListos = true;
+    console.log('Datos cargados:', CLIENTES.length, 'clientes,', PRODUCTOS.length, 'productos');
+
+    // Si el usuario ya estaba en la pantalla de nueva consumición, construir la tabla
+    if (document.getElementById('screen-nueva').classList.contains('active')) {
+      construirTablaClientes();
+    }
+
+  } catch(err) {
+    console.error('Error cargando datos desde Upstash:', err);
+    mostrarEstadoCarga('Error al cargar datos: ' + err.message, true);
+  }
 })();
 
 // ═══════════════════════════════════════════
@@ -847,49 +1192,22 @@ function goHome() {
 //  PANTALLA: NUEVA CONSUMICIÓN
 // ═══════════════════════════════════════════
 
-async function nuevaConsumicion() {
-  showScreen('screen-nueva', 'nav-nueva');
+function toggleTerraza() {
+  terrazaActiva = !terrazaActiva;
+  document.getElementById('terraza-toggle').classList.toggle('checked', terrazaActiva);
+}
 
-  // Mostrar estado de carga en la tabla
-  var tbody = document.getElementById('clientes-tbody');
-  tbody.innerHTML =
-    '<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">' +
-    '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;margin-right:6px;opacity:.6">sync</span>' +
-    'Cargando clientes…</td></tr>';
+function construirTablaClientes() {
+  // Resetear terraza al abrir
+  terrazaActiva = false;
+  document.getElementById('terraza-toggle').classList.remove('checked');
 
-  // Obtener clientes desde Upstash Redis
-  try {
-    var resp = await fetch(UPSTASH_URL + '/get/clientes', {
-      headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
-    });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    var data = await resp.json();
-
-    // data.result es el string "Nombre1,Nombre2,…" o null si la clave no existe
-    var nombres = data.result
-      ? data.result.split(',').map(function(n) { return n.trim(); }).filter(Boolean)
-      : [];
-
-    if (nombres.length === 0) throw new Error('La clave "clientes" está vacía o no existe');
-
-    // Construir array global CLIENTES
-    CLIENTES = nombres.map(function(nombre, i) { return { id: i + 1, nombre: nombre }; });
-
-  } catch (err) {
-    tbody.innerHTML =
-      '<tr><td colspan="3" style="text-align:center;padding:24px;color:#f07070;font-size:13px;">' +
-      '<span class="material-icons-round" style="vertical-align:middle;font-size:18px;margin-right:6px;">error_outline</span>' +
-      'Error al cargar clientes: ' + err.message + '</td></tr>';
-    console.error('Upstash error:', err);
-    return;
-  }
-
-  // Resetear importes
   importes = {};
   CLIENTES.forEach(function(c) { importes[c.id] = 0; });
 
-  // Construir tabla
+  var tbody = document.getElementById('clientes-tbody');
   tbody.innerHTML = '';
+
   CLIENTES.forEach(function(cliente) {
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -912,6 +1230,18 @@ async function nuevaConsumicion() {
   actualizarTotal();
 }
 
+function nuevaConsumicion() {
+  showScreen('screen-nueva', 'nav-nueva');
+
+  if (!datosListos) {
+    // Los datos aún se están cargando; el callback en cargarDatos() construirá la tabla cuando terminen
+    mostrarEstadoCarga('Cargando datos…', false);
+    return;
+  }
+
+  construirTablaClientes();
+}
+
 function onImporteChange(clienteId, valor) {
   importes[clienteId] = parseFloat(valor) || 0;
   actualizarTotal();
@@ -930,9 +1260,128 @@ function cancelarConsumicion() {
   goHome();
 }
 
-function guardarConsumicion(datos) {
-  // TODO: implementar guardado de datos
-  console.log('Guardar consumición:', datos);
+// ─── Tu función (firma ampliada con historial) ───
+function ordenPagadores(clientes, historial) {
+  var cli = [];
+  for (var c of clientes) { if (c.id != 0 && c.importe > 0) cli.push(c); }
+  return cli;
+}
+
+// datos guardados temporalmente mientras el modal de pago está abierto
+var _datosPendientes = null;
+
+// Obtiene todas las claves que empiezan por "0" y devuelve un array
+// con el valor (objeto) de cada una de ellas
+function obtenerHistorial() {
+  // SCAN con MATCH 0* para obtener las claves
+  return fetch(UPSTASH_URL + '/scan/0?match=0*&count=1000', {
+    headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(data) {
+    // data.result = [cursor, [clave1, clave2, ...]]
+    var claves = (data.result && data.result[1]) ? data.result[1] : [];
+    if (claves.length === 0) return [];
+
+    // MGET para traer todos los valores de golpe
+    return fetch(UPSTASH_URL + '/mget/' + claves.join('/'), {
+      headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(mdata) {
+      // mdata.result es un array de strings (o null); parseamos cada uno
+      return (mdata.result || []).map(function(val) {
+        if (!val) return null;
+        try { return JSON.parse(val); } catch(e) { return null; }
+      }).filter(Boolean);
+    });
+  });
+}
+
+async function guardarConsumicion(datos) {
+  _datosPendientes = datos;
+
+  // Mostrar total mientras carga el historial
+  document.getElementById('pago-total-label').textContent =
+    datos.total.toFixed(2).replace('.', ',') + ' €';
+
+  // Rellenar select con placeholder mientras se carga
+  var sel = document.getElementById('pago-select');
+  sel.innerHTML = '<option disabled>Cargando…</option>';
+  document.getElementById('pago-overlay').classList.add('open');
+
+  // Obtener historial de Redis
+  var historial = [];
+  try {
+    historial = await obtenerHistorial();
+  } catch(err) {
+    console.warn('No se pudo obtener el historial:', err.message);
+    // No es bloqueante: se abre el modal igualmente con historial vacío
+  }
+
+  // Rellenar select con el orden de ordenPagadores
+  var ordenados = ordenPagadores(datos.clientes, historial);
+  sel.innerHTML = '';
+  if (ordenados.length === 0) ordenados = datos.clientes.slice();
+  ordenados.forEach(function(c) {
+    var opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.nombre;
+    sel.appendChild(opt);
+  });
+}
+
+function cancelarPago() {
+  document.getElementById('pago-overlay').classList.remove('open');
+  _datosPendientes = null;
+}
+
+function confirmarPago() {
+  if (!_datosPendientes) return;
+
+  var pagadorId = parseInt(document.getElementById('pago-select').value, 10);
+
+  var ahora = new Date();
+  function pad(n) { return String(n).padStart(2, '0'); }
+  var clave = '0' +
+    String(ahora.getFullYear()).slice(-2) +
+    pad(ahora.getMonth() + 1) +
+    pad(ahora.getDate()) +
+    pad(ahora.getHours()) +
+    pad(ahora.getMinutes()) +
+    pad(ahora.getSeconds());
+
+  var consumiciones = _datosPendientes.clientes
+    .filter(function(c) { return c.importe > 0; })
+    .map(function(c) { return [c.id, c.importe]; });
+
+  var valor = { p: pagadorId, c: consumiciones };
+
+  fetch(UPSTASH_URL + '/set/' + clave, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + UPSTASH_TOKEN,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(valor)
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function() {
+    console.log('Consumición guardada con clave:', clave);
+    document.getElementById('pago-overlay').classList.remove('open');
+    _datosPendientes = null;
+    goHome();
+  })
+  .catch(function(err) {
+    console.error('Error guardando en Upstash:', err);
+    alert('Error al guardar: ' + err.message);
+  });
 }
 
 function confirmarConsumicion() {
@@ -946,7 +1395,7 @@ function confirmarConsumicion() {
     total: total
   };
   guardarConsumicion(datos);
-  goHome();
+  // goHome() lo llamará confirmarPago() tras guardar en Redis
 }
 
 // ═══════════════════════════════════════════
@@ -964,11 +1413,11 @@ function abrirModal(clienteId) {
   lista.innerHTML = '';
 
   PRODUCTOS.forEach(function(prod) {
-    var img = PRODUCTO_IMAGENES[prod.id] || '🛒';
-    var esEmoji = Array.from(img).length <= 2;
+    var icono = prod.icono || '🛒';
+    var esEmoji = Array.from(icono).length <= 2;
     var imgHtml = esEmoji
-      ? '<div class="producto-img">' + img + '</div>'
-      : '<img class="producto-img" src="' + img + '" alt="' + prod.descripcion + '" />';
+      ? '<div class="producto-img">' + icono + '</div>'
+      : '<img class="producto-img" src="' + icono + '" alt="' + prod.descripcion + '" />';
 
     var div = document.createElement('div');
     div.className = 'producto-item';
@@ -1011,8 +1460,10 @@ function cambiarCantidad(prodId, delta, event) {
 
   modalCounts[prodId] = nueva;
 
+  // Precio por unidad: producto + terraza si está activa
+  var precioPorUd = prod.precio + (terrazaActiva ? PRECIO_TERRAZA : 0);
   importes[clienteActivoId] = Math.max(0,
-    (importes[clienteActivoId] || 0) + diff * prod.precio
+    (importes[clienteActivoId] || 0) + diff * precioPorUd
   );
 
   var input = document.getElementById('importe-' + clienteActivoId);
@@ -1062,9 +1513,86 @@ function verHistorico() {
   // TODO: cargar y mostrar histórico
 }
 
-function verEstadisticas() {
+function rellenaEstadistica(tabla, historial) {
+  for (var h of historial) {
+    var invit = 0, pagado = 0, ninv = 1;
+    for (var c of h.c) {
+      if (c[0] == 0) {
+        invit = c[1];
+      } else {
+        tabla[c[0]][1] += c[1];
+        pagado += c[1];
+        if (c[0] != h.p) ninv++;
+      }
+    }
+    invit /= ninv;
+    tabla[h.p][2] += pagado;
+    tabla[h.p][3] += invit;
+    for (var c of h.c) {
+      if (c[0] != 0 && c[0] != h.p) tabla[c[0]][3] += invit;
+    }
+  }
+  return tabla;
+}
+
+async function verEstadisticas() {
   showScreen('screen-estadisticas', 'nav-stats');
-  // TODO: calcular y mostrar estadísticas
+
+  document.getElementById('stats-loading').style.display = 'flex';
+  document.getElementById('stats-table').style.display   = 'none';
+
+  var historial = [];
+  try {
+    historial = await obtenerHistorial();
+  } catch(err) {
+    console.warn('Error obteniendo historial para estadísticas:', err.message);
+  }
+
+  // Construir objeto tabla inicial excluyendo id == 0
+  // Cada entrada: [nombre, consumido, pagado, invitado]  (4 elementos; la 5ª col se calcula al pintar)
+  var tablaInicial = {};
+  CLIENTES.forEach(function(c) {
+    if (c.id != 0) tablaInicial[c.id] = [c.nombre, 0, 0, 0];
+  });
+
+  var tablaFinal = rellenaEstadistica(tablaInicial, historial);
+
+  // Renderizar filas en el mismo orden que CLIENTES (saltando id == 0)
+  var tbody = document.getElementById('stats-tbody');
+  tbody.innerHTML = '';
+  var totales = [0, 0, 0, 0];
+
+  CLIENTES.forEach(function(c) {
+    if (c.id == 0) return;
+    var fila = tablaFinal[c.id] || [c.nombre, 0, 0, 0];
+    var suma = (parseFloat(fila[2]) || 0) + (parseFloat(fila[3]) || 0);
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + fila[0] + '</td>' +
+      '<td class="num">'        + (parseFloat(fila[1]) || 0).toFixed(2).replace('.', ',') + ' €</td>' +
+      '<td class="num">'        + (parseFloat(fila[2]) || 0).toFixed(2).replace('.', ',') + ' €</td>' +
+      '<td class="num">'        + (parseFloat(fila[3]) || 0).toFixed(2).replace('.', ',') + ' €</td>' +
+      '<td class="num-accent">' + suma.toFixed(2).replace('.', ',')                        + ' €</td>';
+    tbody.appendChild(tr);
+
+    totales[0] += parseFloat(fila[1]) || 0;
+    totales[1] += parseFloat(fila[2]) || 0;
+    totales[2] += parseFloat(fila[3]) || 0;
+    totales[3] += suma;
+  });
+
+  var tfoot = document.getElementById('stats-tfoot');
+  tfoot.innerHTML =
+    '<tr>' +
+    '<td>TOTAL</td>' +
+    '<td>' + totales[0].toFixed(2).replace('.', ',') + ' €</td>' +
+    '<td>' + totales[1].toFixed(2).replace('.', ',') + ' €</td>' +
+    '<td>' + totales[2].toFixed(2).replace('.', ',') + ' €</td>' +
+    '<td>' + totales[3].toFixed(2).replace('.', ',') + ' €</td>' +
+    '</tr>';
+
+  document.getElementById('stats-loading').style.display = 'none';
+  document.getElementById('stats-table').style.display   = 'table';
 }
 </script>
 </body>
