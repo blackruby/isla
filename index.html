@@ -1177,14 +1177,26 @@
         <h2>Clientes</h2>
       </div>
       <div class="admin-list-card">
-        <table class="admin-table" id="clientes-admin-table">
+        <table class="admin-table">
           <thead>
-            <tr><th>ID</th><th>Nombre</th></tr>
+            <tr><th style="width:44px">ID</th><th>Nombre</th></tr>
           </thead>
           <tbody id="clientes-admin-tbody"></tbody>
         </table>
       </div>
-      <div class="admin-footer"></div>
+      <div class="admin-footer">
+        <div class="prod-edit-actions">
+          <button class="fab-btn fab-cancel" style="flex:1" onclick="goHome()">
+            <span class="material-icons-round">close</span>Cancelar
+          </button>
+          <button class="fab-btn" style="flex:1;background:var(--surface2);color:#f580b0;border:1.5px solid rgba(245,128,176,.3)" onclick="addClienteRow()">
+            <span class="material-icons-round">person_add</span>Añadir
+          </button>
+          <button class="fab-btn fab-confirm" style="flex:1" onclick="guardarClientes()">
+            <span class="material-icons-round">save</span>Guardar
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1898,19 +1910,120 @@ function guardarProductos() {
   });
 }
 
-// ─── Clientes ────────────────────────────────
+// ─── Clientes (editable) ─────────────────────
 
-function verClientes() {
+async function verClientes() {
   showScreen('screen-clientes', 'nav-home');
-
   var tbody = document.getElementById('clientes-admin-tbody');
   tbody.innerHTML = '';
+
+  // Cargar historial para saber qué clientes no se pueden borrar
+  var historial = [];
+  try {
+    historial = await obtenerHistorial();
+  } catch(err) {
+    console.warn('No se pudo obtener historial para clientes:', err.message);
+  }
+
+  // Set de ids que aparecen en el historial (como pagador o como consumidor)
+  var idsEnHistorial = new Set();
+  historial.forEach(function(h) {
+    idsEnHistorial.add(String(h.p));
+    if (Array.isArray(h.c)) {
+      h.c.forEach(function(par) { idsEnHistorial.add(String(par[0])); });
+    }
+  });
+
   CLIENTES.forEach(function(c) {
-    var tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td style="color:var(--text-muted)">' + c.id + '</td>' +
-      '<td>' + c.nombre + '</td>';
+    var borrable = c.id !== 0 && !idsEnHistorial.has(String(c.id));
+    addClienteRow(c, borrable);
+  });
+}
+
+function addClienteRow(c, borrable) {
+  var maxId = 0;
+  CLIENTES.forEach(function(x) { if (x.id > maxId) maxId = x.id; });
+  if (!c) {
+    document.querySelectorAll('#clientes-admin-tbody tr').forEach(function(tr) {
+      var id = parseInt(tr.dataset.id, 10);
+      if (id > maxId) maxId = id;
+    });
+    c = { id: maxId + 1, nombre: '' };
+    borrable = true; // recién añadido: siempre borrable
+  }
+
+  var tbody = document.getElementById('clientes-admin-tbody');
+  var tr = document.createElement('tr');
+  tr.dataset.id = c.id;
+
+  var btnBorrar = borrable
+    ? '<button class="prod-del-btn" onclick="eliminarClienteRow(this)" title="Eliminar">' +
+        '<span class="material-icons-round">delete</span>' +
+      '</button>'
+    : '';
+
+  tr.innerHTML =
+    '<td style="color:var(--text-muted);font-weight:700;font-size:13px;padding:8px 14px">' + c.id + '</td>' +
+    '<td style="padding:6px 8px 6px 0">' +
+      '<input class="prod-edit-input" type="text" value="' + (c.nombre || '') + '" placeholder="Nombre del cliente" />' +
+    '</td>' +
+    '<td style="width:36px;padding:6px 8px 6px 0">' + btnBorrar + '</td>';
+
+  // Insertar antes de la última fila (que es siempre el cliente id=0)
+  var filas = tbody.querySelectorAll('tr');
+  var ultima = filas.length > 0 ? filas[filas.length - 1] : null;
+  if (ultima && parseInt(ultima.dataset.id, 10) === 0) {
+    tbody.insertBefore(tr, ultima);
+  } else {
     tbody.appendChild(tr);
+  }
+
+  // Si es nuevo, poner foco en el input
+  if (!c.nombre) {
+    setTimeout(function() { tr.querySelector('input').focus(); }, 50);
+  }
+}
+
+function eliminarClienteRow(btn) {
+  btn.closest('tr').remove();
+}
+
+function guardarClientes() {
+  var filas = document.querySelectorAll('#clientes-admin-tbody tr');
+  var nuevos = [];
+
+  filas.forEach(function(tr) {
+    var id     = parseInt(tr.dataset.id, 10);
+    var nombre = tr.querySelector('input').value.trim();
+    if (!nombre) return; // ignorar filas vacías
+    nuevos.push({ id: id, nombre: nombre });
+  });
+
+  if (nuevos.length === 0) {
+    alert('No hay clientes para guardar.');
+    return;
+  }
+
+  fetch(UPSTASH_URL + '/set/clientes', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + UPSTASH_TOKEN,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(nuevos)
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function() {
+    CLIENTES = nuevos;
+    console.log('Clientes guardados:', CLIENTES.length);
+    goHome();
+  })
+  .catch(function(err) {
+    console.error('Error guardando clientes:', err);
+    alert('Error al guardar: ' + err.message);
   });
 }
 
