@@ -109,16 +109,6 @@
       gap: 16px;
     }
 
-    .home-greeting {
-      margin-bottom: 8px;
-    }
-    .home-greeting h2 {
-      font-size: 26px; font-weight: 900; letter-spacing: -.03em;
-    }
-    .home-greeting p {
-      font-size: 13px; color: var(--text-muted); font-weight: 600; margin-top: 2px;
-    }
-
     /* hero card */
     .hero-card {
       background: linear-gradient(135deg, var(--accent) 0%, #9b59f5 100%);
@@ -936,11 +926,6 @@
   <!-- ── SCREEN: HOME ── -->
   <div id="screen-home" class="screen active">
 
-    <div class="home-greeting">
-      <h2>¡Buenas, Jubiletas! 👋</h2>
-      <p id="fecha-hoy"></p>
-    </div>
-
     <div class="section-label">Acciones</div>
 
     <button class="action-btn btn-new" onclick="nuevaConsumicion()">
@@ -1263,19 +1248,6 @@ var clienteActivoId = null;
 var modalCounts     = {};
 var datosListos     = false;
 var terrazaActiva   = false;   // estado del toggle de terraza
-
-// ═══════════════════════════════════════════
-//  FECHA
-// ═══════════════════════════════════════════
-
-(function() {
-  var dias  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  var meses = ['enero','febrero','marzo','abril','mayo','junio','julio',
-               'agosto','septiembre','octubre','noviembre','diciembre'];
-  var hoy = new Date();
-  var el  = document.getElementById('fecha-hoy');
-  if (el) el.textContent = dias[hoy.getDay()] + ', ' + hoy.getDate() + ' de ' + meses[hoy.getMonth()];
-})();
 
 // ═══════════════════════════════════════════
 //  CARGA INICIAL DESDE UPSTASH (una sola vez)
