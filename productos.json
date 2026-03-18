@@ -1,0 +1,80 @@
+[
+  {
+    "id": 1,
+    "descripcion": "Café solo",
+    "precio": 1.4,
+    "icono": "☕"
+  },
+  {
+    "id": 2,
+    "descripcion": "Café cortado",
+    "precio": 1.5,
+    "icono": "☕"
+  },
+  {
+    "id": 3,
+    "descripcion": "Café con leche",
+    "precio": 1.6,
+    "icono": "☕"
+  },
+  {
+    "id": 4,
+    "descripcion": "Agua con gas",
+    "precio": 2.2,
+    "icono": "💧"
+  },
+  {
+    "id": 5,
+    "descripcion": "Caña de cerveza",
+    "precio": 2.2,
+    "icono": "🍺"
+  },
+  {
+    "id": 6,
+    "descripcion": "Corto de cerveza",
+    "precio": 1.5,
+    "icono": "🍺"
+  },
+  {
+    "id": 7,
+    "descripcion": "Botellín de cerveza",
+    "precio": 2.5,
+    "icono": "🍺"
+  },
+  {
+    "id": 8,
+    "descripcion": "Infusión",
+    "precio": 1.5,
+    "icono": "🫖"
+  },
+  {
+    "id": 9,
+    "descripcion": "Mosto",
+    "precio": 1.5,
+    "icono": "🍇"
+  },
+  {
+    "id": 10,
+    "descripcion": "Refresco",
+    "precio": 2.5,
+    "icono": "🥤"
+  },
+  {
+    "id": 11,
+    "descripcion": "Sandwich 2.0",
+    "precio": 2,
+    "icono": "🥪"
+  },
+  {
+    "id": 12,
+    "descripcion": "Sandwich 2.5",
+    "precio": 2.5,
+    "icono": "🥪"
+  },
+  {
+    "id": 13,
+    "descripcion": "Sandwich 3.0",
+    "precio": 3,
+    "icono": "🥪"
+  }
+]

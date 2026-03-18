@@ -797,6 +797,12 @@
       flex-shrink: 0;
       padding-bottom: calc(var(--nav-h) + 12px + var(--safe-bottom));
     }
+    .prod-edit-actions {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      padding-top: 4px;
+    }
     .admin-table {
       width: 100%;
       border-collapse: collapse;
@@ -812,6 +818,52 @@
     .admin-table tbody tr { border-top: 1px solid rgba(255,255,255,.05); }
     .admin-table td { padding: 11px 14px; font-size: 13px; font-weight: 600; vertical-align: middle; }
     .admin-table td:last-child { text-align: right; color: var(--accent-light); font-weight: 800; }
+
+    /* Tabla editable de productos */
+    .prod-edit-table td { padding: 6px 8px; }
+    .prod-edit-input {
+      background: var(--surface2);
+      border: 1.5px solid rgba(255,255,255,.08);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 13px; font-weight: 700;
+      padding: 6px 8px;
+      outline: none;
+      width: 100%;
+      transition: border-color .15s;
+    }
+    .prod-edit-input:focus { border-color: var(--accent); }
+    .prod-edit-input.icono { text-align: center; font-size: 18px; width: 44px; padding: 4px; }
+    .prod-edit-input.precio { text-align: right; width: 76px; }
+    .prod-del-btn {
+      width: 28px; height: 28px;
+      background: rgba(240,112,112,.15);
+      border: none; border-radius: 8px;
+      color: #f07070;
+      display: grid; place-items: center;
+      cursor: pointer;
+      transition: background .1s, transform .1s;
+    }
+    .prod-del-btn:active { transform: scale(.9); background: rgba(240,112,112,.3); }
+    .prod-del-btn .material-icons-round { font-size: 16px; }
+    .prod-drag-handle {
+      color: var(--text-muted);
+      cursor: grab;
+      display: grid; place-items: center;
+      padding: 0 4px;
+      touch-action: none;
+      opacity: .5;
+    }
+    .prod-drag-handle:active { cursor: grabbing; }
+    .prod-drag-handle .material-icons-round { font-size: 18px; }
+    tr.dragging {
+      opacity: .4;
+      background: var(--surface2);
+    }
+    tr.drag-over {
+      box-shadow: 0 -2px 0 var(--accent);
+    }
 
     /* Terraza price editor */
     .terraza-admin-card {
@@ -1093,14 +1145,27 @@
         <h2>Productos</h2>
       </div>
       <div class="admin-list-card">
-        <table class="admin-table" id="productos-admin-table">
+        <table class="admin-table prod-edit-table">
           <thead>
-            <tr><th>Icono</th><th>Descripción</th><th>Precio</th></tr>
+            <tr><th style="width:28px"></th><th style="width:52px">Icono</th><th>Descripción</th><th style="width:88px">Precio</th><th style="width:36px"></th></tr>
           </thead>
           <tbody id="productos-admin-tbody"></tbody>
         </table>
       </div>
-      <div class="admin-footer"></div>
+      <!-- Footer fijo -->
+      <div class="admin-footer">
+        <div class="prod-edit-actions">
+          <button class="fab-btn fab-cancel" style="flex:1" onclick="goHome()">
+            <span class="material-icons-round">close</span>Cancelar
+          </button>
+          <button class="fab-btn" style="flex:1;background:var(--surface2);color:#60b0f5;border:1.5px solid rgba(96,176,245,.3)" onclick="addProductoRow()">
+            <span class="material-icons-round">add</span>Añadir
+          </button>
+          <button class="fab-btn fab-confirm" style="flex:1" onclick="guardarProductos()">
+            <span class="material-icons-round">save</span>Guardar
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1208,7 +1273,11 @@ function redisGet(clave) {
     return r.json();
   })
   .then(function(data) {
-    if (data.result === null) throw new Error('La clave "' + clave + '" no existe en Redis');
+    if (data.result === null || data.result === undefined)
+      throw new Error('La clave "' + clave + '" no existe en Redis');
+    // Si el resultado ya es un objeto/array (Upstash lo deserializó), devolverlo directamente
+    if (typeof data.result !== 'string') return data.result;
+    // Si es string, parsearlo
     return JSON.parse(data.result);
   });
 }
@@ -1417,6 +1486,7 @@ function obtenerHistorial() {
     .then(function(mdata) {
       return (mdata.result || []).map(function(val) {
         if (!val) return null;
+        if (typeof val !== 'string') return val;
         try { return JSON.parse(val); } catch(e) { return null; }
       }).filter(Boolean);
     });
@@ -1645,18 +1715,169 @@ function verHistorico() {
 
 // ─── Productos ───────────────────────────────
 
+// ─── Productos (editable + reordenable) ─────
+
+var _nextProdId = 1000;
+var _dragSrc    = null;  // fila que se está arrastrando
+
 function verProductos() {
   showScreen('screen-productos', 'nav-home');
-
   var tbody = document.getElementById('productos-admin-tbody');
   tbody.innerHTML = '';
-  PRODUCTOS.forEach(function(p) {
-    var tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td style="font-size:22px">' + (p.icono || '') + '</td>' +
-      '<td>' + p.descripcion + '</td>' +
-      '<td>' + p.precio.toFixed(2).replace('.', ',') + ' €</td>';
-    tbody.appendChild(tr);
+  PRODUCTOS.forEach(function(p) { addProductoRow(p); });
+}
+
+function addProductoRow(p) {
+  p = p || { id: ++_nextProdId, icono: '', descripcion: '', precio: 0 };
+  var tbody = document.getElementById('productos-admin-tbody');
+  var tr = document.createElement('tr');
+  tr.draggable = true;
+  tr.dataset.id = p.id;
+  tr.innerHTML =
+    '<td class="prod-drag-handle">' +
+      '<span class="material-icons-round">drag_indicator</span>' +
+    '</td>' +
+    '<td>' +
+      '<input class="prod-edit-input icono" type="text" value="' + (p.icono || '') + '" placeholder="☕" maxlength="2" />' +
+    '</td>' +
+    '<td>' +
+      '<input class="prod-edit-input" type="text" value="' + (p.descripcion || '') + '" placeholder="Descripción" />' +
+    '</td>' +
+    '<td>' +
+      '<input class="prod-edit-input precio" type="number" value="' + (p.precio || 0).toFixed(2) + '" min="0" step="0.01" inputmode="decimal" />' +
+    '</td>' +
+    '<td>' +
+      '<button class="prod-del-btn" onclick="eliminarProductoRow(this)" title="Eliminar">' +
+        '<span class="material-icons-round">delete</span>' +
+      '</button>' +
+    '</td>';
+
+  // ── Drag & Drop (ratón / teclado) ──
+  tr.addEventListener('dragstart', function(e) {
+    _dragSrc = tr;
+    tr.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  tr.addEventListener('dragend', function() {
+    _dragSrc = null;
+    tr.classList.remove('dragging');
+    document.querySelectorAll('#productos-admin-tbody tr').forEach(function(r) {
+      r.classList.remove('drag-over');
+    });
+  });
+  tr.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (_dragSrc && _dragSrc !== tr) {
+      document.querySelectorAll('#productos-admin-tbody tr').forEach(function(r) {
+        r.classList.remove('drag-over');
+      });
+      tr.classList.add('drag-over');
+    }
+  });
+  tr.addEventListener('drop', function(e) {
+    e.preventDefault();
+    if (_dragSrc && _dragSrc !== tr) {
+      var tbody = tr.parentNode;
+      var rows  = Array.from(tbody.querySelectorAll('tr'));
+      var srcIdx = rows.indexOf(_dragSrc);
+      var tgtIdx = rows.indexOf(tr);
+      if (srcIdx < tgtIdx) tbody.insertBefore(_dragSrc, tr.nextSibling);
+      else                 tbody.insertBefore(_dragSrc, tr);
+      tr.classList.remove('drag-over');
+    }
+  });
+
+  // ── Touch drag (móvil) ──
+  var handle = tr.querySelector('.prod-drag-handle');
+  var touchY = 0;
+  handle.addEventListener('touchstart', function(e) {
+    _dragSrc = tr;
+    tr.classList.add('dragging');
+    touchY = e.touches[0].clientY;
+    e.preventDefault();
+  }, { passive: false });
+
+  handle.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    var y = e.touches[0].clientY;
+    var tbody = tr.parentNode;
+    var rows  = Array.from(tbody.querySelectorAll('tr:not(.dragging)'));
+    document.querySelectorAll('#productos-admin-tbody tr').forEach(function(r) {
+      r.classList.remove('drag-over');
+    });
+    var target = null;
+    rows.forEach(function(r) {
+      var rect = r.getBoundingClientRect();
+      if (y > rect.top && y < rect.bottom) target = r;
+    });
+    if (target) target.classList.add('drag-over');
+    touchY = y;
+  }, { passive: false });
+
+  handle.addEventListener('touchend', function() {
+    var tbody = tr.parentNode;
+    var over  = tbody.querySelector('tr.drag-over');
+    if (over && over !== tr) {
+      var rows   = Array.from(tbody.querySelectorAll('tr'));
+      var srcIdx = rows.indexOf(tr);
+      var tgtIdx = rows.indexOf(over);
+      if (srcIdx < tgtIdx) tbody.insertBefore(tr, over.nextSibling);
+      else                 tbody.insertBefore(tr, over);
+    }
+    tr.classList.remove('dragging');
+    document.querySelectorAll('#productos-admin-tbody tr').forEach(function(r) {
+      r.classList.remove('drag-over');
+    });
+    _dragSrc = null;
+  });
+
+  tbody.appendChild(tr);
+}
+
+function eliminarProductoRow(btn) {
+  btn.closest('tr').remove();
+}
+
+function guardarProductos() {
+  var filas = document.querySelectorAll('#productos-admin-tbody tr');
+  var nuevos = [];
+  var nextId = 1;
+
+  filas.forEach(function(tr) {
+    var inputs = tr.querySelectorAll('input');
+    var icono  = inputs[0].value.trim();
+    var desc   = inputs[1].value.trim();
+    var precio = parseFloat(inputs[2].value) || 0;
+    if (!desc) return; // ignorar filas vacías
+    nuevos.push({ id: nextId++, icono: icono, descripcion: desc, precio: precio });
+  });
+
+  if (nuevos.length === 0) {
+    alert('No hay productos para guardar.');
+    return;
+  }
+
+  fetch(UPSTASH_URL + '/set/productos', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + UPSTASH_TOKEN,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(nuevos)  // igual que terraza y comandas: objeto directo
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function() {
+    PRODUCTOS = nuevos;
+    console.log('Productos guardados:', PRODUCTOS.length);
+    goHome();
+  })
+  .catch(function(err) {
+    console.error('Error guardando productos:', err);
+    alert('Error al guardar: ' + err.message);
   });
 }
 
