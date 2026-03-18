@@ -48,51 +48,6 @@
       overflow: hidden;
     }
 
-    /* ─── Status bar mock ───────────────────── */
-    .status-bar {
-      height: 28px;
-      background: var(--surface);
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding: 0 18px;
-      gap: 10px;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-muted);
-      letter-spacing: .04em;
-      flex-shrink: 0;
-    }
-    .status-bar .time { margin-right: auto; color: var(--text); }
-
-    /* ─── Top bar ───────────────────────────── */
-    .topbar {
-      background: var(--surface);
-      padding: 14px 20px 12px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-shrink: 0;
-      border-bottom: 1px solid rgba(255,255,255,.05);
-    }
-    .topbar-logo {
-      width: 36px; height: 36px;
-      background: var(--accent);
-      border-radius: 10px;
-      display: grid; place-items: center;
-      font-size: 20px;
-    }
-    .topbar-title { font-size: 20px; font-weight: 900; letter-spacing: -.02em; }
-    .topbar-subtitle { font-size: 12px; color: var(--text-muted); font-weight: 600; }
-    .topbar-avatar {
-      margin-left: auto;
-      width: 36px; height: 36px;
-      background: linear-gradient(135deg, var(--accent), #c06ef5);
-      border-radius: 50%;
-      display: grid; place-items: center;
-      font-weight: 900; font-size: 15px;
-    }
-
     /* ─── Screens ───────────────────────────── */
     .screen {
       flex: 1;
@@ -913,15 +868,6 @@
 </head>
 <body>
 <div id="app">
-
-  <!-- Top bar -->
-  <div class="topbar">
-    <div class="topbar-logo">🍺</div>
-    <div>
-      <div class="topbar-title">LaIsla</div>
-      <div class="topbar-subtitle">Control de consumiciones</div>
-    </div>
-  </div>
 
   <!-- ── SCREEN: HOME ── -->
   <div id="screen-home" class="screen active">
