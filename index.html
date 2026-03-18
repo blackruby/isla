@@ -907,6 +907,93 @@
     }
     .terraza-save-btn:active { transform: scale(.96); opacity: .85; }
 
+    /* ─── Calendario histórico ──────────────── */
+    .cal-month {
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .cal-month-title {
+      font-size: 13px; font-weight: 800; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--text-muted);
+      padding: 0 2px;
+    }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .cal-dow {
+      text-align: center;
+      font-size: 9px; font-weight: 800; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--text-muted);
+      padding-bottom: 2px;
+    }
+    .cal-day {
+      aspect-ratio: 1;
+      border-radius: 10px;
+      display: grid; place-items: center;
+      font-size: 13px; font-weight: 700;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: default;
+      position: relative;
+    }
+    .cal-day.has-data {
+      background: rgba(80,200,160,.18);
+      color: #50c8a0;
+      font-weight: 900;
+      cursor: pointer;
+      border: 1.5px solid rgba(80,200,160,.35);
+      transition: background .12s, transform .1s;
+    }
+    .cal-day.has-data:active { transform: scale(.92); background: rgba(80,200,160,.35); }
+    .cal-day.has-data .cal-dot {
+      position: absolute; bottom: 4px;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: #50c8a0;
+    }
+    .cal-day.today {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+      color: var(--accent-light);
+    }
+    .cal-day.empty { visibility: hidden; }
+
+    /* Fila de comanda en el modal de detalle */
+    .hist-comanda-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px;
+      background: var(--surface2);
+      border-radius: 10px;
+      font-size: 13px;
+    }
+    .hist-comanda-row .nombre { font-weight: 700; }
+    .hist-comanda-row .importe { font-weight: 900; color: var(--accent-light); }
+    .hist-comanda-row.pagador { border: 1.5px solid var(--accent); }
+    .hist-comanda-row .pagador-badge {
+      font-size: 9px; font-weight: 800; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--accent-light);
+      background: rgba(124,110,245,.2); border-radius: 6px;
+      padding: 2px 6px; margin-left: 6px;
+    }
+    /* Botón de hora en lista de comandas del día */
+    .hist-hora-btn {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border: 1.5px solid rgba(255,255,255,.06);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 15px; font-weight: 800;
+      cursor: pointer; width: 100%;
+      transition: background .1s;
+    }
+    .hist-hora-btn:active { background: #2e2e50; }
+    .hist-hora-btn .hora { color: #50c8a0; }
+    .hist-hora-btn .total { color: var(--accent-light); font-size: 14px; }
+
     /* ─── Desktop centering visual ──────────── */
     @media (min-width: 481px) {
       body { background: #080810; }
@@ -1093,15 +1180,50 @@
 
   <!-- ── SCREEN: HISTÓRICO ── -->
   <div id="screen-historico" class="screen">
-    <div class="inner-screen">
+    <div class="inner-screen" style="padding:16px 20px 0;overflow:hidden;flex:1;display:flex;flex-direction:column;gap:12px">
       <div class="screen-header">
         <span class="material-icons-round" style="color:#50c8a0">history</span>
         <h2>Histórico</h2>
       </div>
-      <div class="placeholder-card">
-        <div class="ph-icon">📋</div>
-        <p>Aquí aparecerá el listado de consumiciones registradas.</p>
+      <div id="hist-loading" class="stats-loading">
+        <span class="material-icons-round" style="font-size:18px;opacity:.6">sync</span>
+        Cargando…
       </div>
+      <div id="hist-calendar" style="overflow-y:auto;flex:1;min-height:0;display:none;flex-direction:column;gap:20px;padding-bottom:calc(var(--nav-h) + 16px + var(--safe-bottom))"></div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: DETALLE COMANDA ── -->
+  <div id="hist-modal-overlay" class="pago-overlay" onclick="cerrarHistModal(event)">
+    <div class="pago-dialog" style="gap:16px" onclick="event.stopPropagation()">
+      <div class="pago-dialog-header">
+        <div class="pago-dialog-icon">🧾</div>
+        <div class="pago-dialog-title" id="hist-modal-title">Comanda</div>
+        <div style="font-size:13px;color:var(--text-muted);font-weight:600" id="hist-modal-sub"></div>
+      </div>
+      <div id="hist-modal-body" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div style="display:flex;gap:10px">
+        <button class="pago-btn pago-btn-cancel" style="flex:1" onclick="cerrarHistModalBtn()">
+          <span class="material-icons-round">close</span>Cerrar
+        </button>
+        <button class="pago-btn" style="flex:0 0 auto;background:rgba(240,112,112,.15);color:#f07070;border:1.5px solid rgba(240,112,112,.3)" onclick="borrarComanda()">
+          <span class="material-icons-round">delete</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: LISTA DE COMANDAS DEL DÍA ── -->
+  <div id="hist-list-overlay" class="pago-overlay" onclick="cerrarHistList(event)">
+    <div class="pago-dialog" style="gap:12px" onclick="event.stopPropagation()">
+      <div class="pago-dialog-header">
+        <div class="pago-dialog-icon">📋</div>
+        <div class="pago-dialog-title" id="hist-list-title">Comandas del día</div>
+      </div>
+      <div id="hist-list-body" style="display:flex;flex-direction:column;gap:8px"></div>
+      <button class="pago-btn pago-btn-cancel" style="width:100%" onclick="cerrarHistListBtn()">
+        <span class="material-icons-round">close</span>Cerrar
+      </button>
     </div>
   </div>
 
@@ -1737,9 +1859,296 @@ document.addEventListener('keydown', function(e) {
 //  OTRAS PANTALLAS
 // ═══════════════════════════════════════════
 
-function verHistorico() {
+// ═══════════════════════════════════════════
+//  HISTÓRICO — CALENDARIO
+// ═══════════════════════════════════════════
+
+// Historial con clave adjunta: [{key, data}]
+var _histItems = [];
+
+async function verHistorico() {
   showScreen('screen-historico', 'nav-hist');
-  // TODO: cargar y mostrar histórico
+
+  var loading = document.getElementById('hist-loading');
+  var cal     = document.getElementById('hist-calendar');
+  loading.style.display = 'flex';
+  cal.style.display     = 'none';
+  cal.innerHTML         = '';
+
+  // Traer claves + valores
+  try {
+    _histItems = await obtenerHistorialConClaves();
+  } catch(err) {
+    loading.innerHTML = '<span style="color:#f07070">Error: ' + err.message + '</span>';
+    return;
+  }
+
+  if (_histItems.length === 0) {
+    loading.innerHTML = '<span style="opacity:.5">Sin comandas registradas</span>';
+    return;
+  }
+
+  // Agrupar por YYMMDD
+  var porDia = {}; // { 'YYMMDD': [{key, data}, ...] }
+  _histItems.forEach(function(item) {
+    var dia = item.key.substring(0, 6); // YYMMdd
+    if (!porDia[dia]) porDia[dia] = [];
+    porDia[dia].push(item);
+  });
+
+  // Calcular rango de meses: desde el más antiguo hasta hoy
+  var claves  = Object.keys(porDia).sort();
+  var hoy     = new Date();
+  var minYear = 2000 + parseInt(claves[0].substring(0, 2), 10);
+  var minMes  = parseInt(claves[0].substring(2, 4), 10) - 1;
+  var maxYear = hoy.getFullYear();
+  var maxMes  = hoy.getMonth();
+
+  // Generar meses de más reciente a más antiguo
+  var meses = [];
+  var y = maxYear, m = maxMes;
+  while (y > minYear || (y === minYear && m >= minMes)) {
+    meses.push({ y: y, m: m });
+    m--; if (m < 0) { m = 11; y--; }
+  }
+
+  var MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var DOW = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
+
+  meses.forEach(function(ym) {
+    var yy2  = String(ym.y).slice(-2);
+    var mm2  = String(ym.m + 1).padStart(2, '0');
+    var div  = document.createElement('div');
+    div.className = 'cal-month';
+
+    var titulo = document.createElement('div');
+    titulo.className   = 'cal-month-title';
+    titulo.textContent = MESES_ES[ym.m] + ' ' + ym.y;
+    div.appendChild(titulo);
+
+    var grid = document.createElement('div');
+    grid.className = 'cal-grid';
+
+    // Cabecera días de la semana
+    DOW.forEach(function(d) {
+      var dh = document.createElement('div');
+      dh.className   = 'cal-dow';
+      dh.textContent = d;
+      grid.appendChild(dh);
+    });
+
+    // Primer día del mes (0=dom…6=sab → convertir a lun=0)
+    var primerDia = new Date(ym.y, ym.m, 1).getDay();
+    primerDia = (primerDia + 6) % 7; // lunes = 0
+    var diasEnMes = new Date(ym.y, ym.m + 1, 0).getDate();
+
+    // Celdas vacías iniciales
+    for (var e = 0; e < primerDia; e++) {
+      var em = document.createElement('div');
+      em.className = 'cal-day empty';
+      grid.appendChild(em);
+    }
+
+    // Días del mes
+    for (var d = 1; d <= diasEnMes; d++) {
+      var dd2  = String(d).padStart(2, '0');
+      var clave = yy2 + mm2 + dd2;
+      var items = porDia[clave] || [];
+      var esHoy = (ym.y === hoy.getFullYear() && ym.m === hoy.getMonth() && d === hoy.getDate());
+
+      var btn = document.createElement(items.length ? 'button' : 'div');
+      btn.className = 'cal-day' + (items.length ? ' has-data' : '') + (esHoy ? ' today' : '');
+      btn.textContent = d;
+
+      if (items.length) {
+        var dot = document.createElement('span');
+        dot.className = 'cal-dot';
+        btn.appendChild(dot);
+        (function(its) {
+          btn.addEventListener('click', function() { abrirHistDia(its); });
+        })(items);
+      }
+
+      grid.appendChild(btn);
+    }
+
+    div.appendChild(grid);
+    cal.appendChild(div);
+  });
+
+  loading.style.display = 'none';
+  cal.style.display     = 'flex';
+}
+
+// Como obtenerHistorial pero devuelve [{key, data}]
+function obtenerHistorialConClaves() {
+  return fetch(UPSTASH_URL + '/keys/*', {
+    headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var claves = (data.result || []).filter(function(k) {
+      return k.charAt(0) >= '0' && k.charAt(0) <= '9';
+    });
+    if (claves.length === 0) return [];
+
+    return fetch(UPSTASH_URL + '/mget/' + claves.join('/'), {
+      headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(mdata) {
+      return (mdata.result || []).map(function(val, i) {
+        if (!val) return null;
+        var obj = (typeof val !== 'string') ? val : null;
+        if (!obj) { try { obj = JSON.parse(val); } catch(e) { return null; } }
+        return { key: claves[i], data: obj };
+      }).filter(Boolean);
+    });
+  });
+}
+
+// ── Abrir día ────────────────────────────────
+
+function abrirHistDia(items) {
+  if (items.length === 1) {
+    mostrarComanda(items[0]);
+    return;
+  }
+  // Varios: mostrar lista de horas
+  var MESES_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var titulo = document.getElementById('hist-list-title');
+  var key0   = items[0].key;
+  var yy = 2000 + parseInt(key0.substring(0,2),10);
+  var mm = parseInt(key0.substring(2,4),10) - 1;
+  var dd = parseInt(key0.substring(4,6),10);
+  titulo.textContent = dd + ' ' + MESES_ES[mm] + ' ' + yy;
+
+  var body = document.getElementById('hist-list-body');
+  body.innerHTML = '';
+
+  items.forEach(function(item) {
+    var hh = item.key.substring(6,8);
+    var mi = item.key.substring(8,10);
+    var ss = item.key.substring(10,12);
+    var total = (item.data.c || []).reduce(function(s, par) {
+      return s + (par[0] !== 0 ? par[1] : 0);
+    }, 0);
+    var btn = document.createElement('button');
+    btn.className = 'hist-hora-btn';
+    btn.innerHTML =
+      '<span class="hora">' + hh + ':' + mi + ':' + ss + '</span>' +
+      '<span class="total">' + total.toFixed(2).replace('.', ',') + ' €</span>';
+    btn.addEventListener('click', function() {
+      cerrarHistListBtn();
+      mostrarComanda(item);
+    });
+    body.appendChild(btn);
+  });
+
+  document.getElementById('hist-list-overlay').classList.add('open');
+}
+
+// ── Mostrar detalle de una comanda ───────────
+
+// Clave de la comanda que se está mostrando en el modal de detalle
+var _comandaActivaKey = null;
+
+function mostrarComanda(item) {
+  _comandaActivaKey = item.key;
+  var key  = item.key;
+  var data = item.data;
+
+  var yy = 2000 + parseInt(key.substring(0,2),10);
+  var mm = parseInt(key.substring(2,4),10) - 1;
+  var dd = parseInt(key.substring(4,6),10);
+  var hh = key.substring(6,8);
+  var mi = key.substring(8,10);
+  var MESES_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+  document.getElementById('hist-modal-title').textContent =
+    dd + ' ' + MESES_ES[mm] + ' ' + yy;
+  document.getElementById('hist-modal-sub').textContent = 'Comanda a las ' + hh + ':' + mi;
+
+  var body = document.getElementById('hist-modal-body');
+  body.innerHTML = '';
+
+  var pagadorId = String(data.p);
+  var consumos  = data.c || [];
+
+  // Calcular total
+  var total = consumos.reduce(function(s, par) {
+    return s + (par[0] !== 0 ? par[1] : 0);
+  }, 0);
+
+  // Fila de total
+  var totalRow = document.createElement('div');
+  totalRow.style.cssText = 'display:flex;justify-content:space-between;padding:4px 0 8px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:2px';
+  totalRow.innerHTML =
+    '<span style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)">TOTAL</span>' +
+    '<span style="font-size:18px;font-weight:900;color:var(--accent-light)">' + total.toFixed(2).replace('.',',') + ' €</span>';
+  body.appendChild(totalRow);
+
+  // Fila por cliente
+  consumos.forEach(function(par) {
+    if (par[0] === 0) return; // skip id=0
+    var cId     = String(par[0]);
+    var importe = par[1];
+    var cli     = CLIENTES.find(function(c) { return String(c.id) === cId; });
+    var nombre  = cli ? cli.nombre : 'Cliente ' + cId;
+    var esPagador = (cId === pagadorId);
+
+    var row = document.createElement('div');
+    row.className = 'hist-comanda-row' + (esPagador ? ' pagador' : '');
+    row.innerHTML =
+      '<span class="nombre">' + nombre +
+        (esPagador ? '<span class="pagador-badge">pagó</span>' : '') +
+      '</span>' +
+      '<span class="importe">' + importe.toFixed(2).replace('.',',') + ' €</span>';
+    body.appendChild(row);
+  });
+
+  document.getElementById('hist-modal-overlay').classList.add('open');
+}
+
+function cerrarHistModalBtn() {
+  document.getElementById('hist-modal-overlay').classList.remove('open');
+  _comandaActivaKey = null;
+}
+
+function borrarComanda() {
+  if (!_comandaActivaKey) return;
+  if (!confirm('¿Borrar esta comanda? La acción no se puede deshacer.')) return;
+
+  var clave = _comandaActivaKey;
+
+  fetch(UPSTASH_URL + '/del/' + clave, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN }
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function() {
+    // Eliminar del array local y refrescar el calendario
+    _histItems = _histItems.filter(function(i) { return i.key !== clave; });
+    cerrarHistModalBtn();
+    verHistorico(); // recargar vista
+  })
+  .catch(function(err) {
+    console.error('Error borrando comanda:', err);
+    alert('Error al borrar: ' + err.message);
+  });
+}
+function cerrarHistModal(e) {
+  if (e.target === document.getElementById('hist-modal-overlay')) cerrarHistModalBtn();
+}
+function cerrarHistListBtn() {
+  document.getElementById('hist-list-overlay').classList.remove('open');
+}
+function cerrarHistList(e) {
+  if (e.target === document.getElementById('hist-list-overlay')) cerrarHistListBtn();
 }
 
 // ─── Productos ───────────────────────────────
