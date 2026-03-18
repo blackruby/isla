@@ -1262,8 +1262,37 @@ function cancelarConsumicion() {
 
 // ─── Tu función (firma ampliada con historial) ───
 function ordenPagadores(clientes, historial) {
+  var inv = 0, cliRank = {};
+  for (var c of clientes) {
+    if (c.id == 0) {
+      inv = c.importe;
+    } else {
+      if (c.importe > 0) {
+        cliRank[c.id] = {nombre: c.nombre, importe: c.importe, peso: 0};
+      }
+    }
+  }
+
+  if (inv > 0) inv /= Object.keys(cliRank).length - 1;
+
+  for (var id in cliRank) {
+    for (var id2 in cliRank) {
+      if (id != id2) cliRank[id].peso += cliRank[id2].importe + inv;
+    }
+  }
+
+  for (h of historial) {
+    if (Object.hasOwn(cliRank, h.p)) {
+      inv = 0;
+      for (var c of h.c) if (c[0] == 0) inv = c[1] / (h.c.length - 1);
+      for (var c of h.c) if (c[0] != h.p && Object.hasOwn(cliRank, c[0])) cliRank[h.p].peso += c[1] + inv;
+    }
+  }
+
   var cli = [];
-  for (var c of clientes) { if (c.id != 0 && c.importe > 0) cli.push(c); }
+  for (var id in cliRank) cli.push({id: id, nombre: cliRank[id].nombre, peso: cliRank[id].peso});
+  cli.sort((a, b) => a.peso - b.peso);
+
   return cli;
 }
 
@@ -1385,6 +1414,14 @@ function confirmarPago() {
 }
 
 function confirmarConsumicion() {
+  var hayImporte = CLIENTES.some(function(c) {
+    return c.id > 0 && (importes[c.id] || 0) > 0;
+  });
+  if (!hayImporte) {
+    alert('Debes introducir al menos un importe para continuar.');
+    return;
+  }
+
   var total = 0;
   Object.keys(importes).forEach(function(k) { total += importes[k]; });
   var datos = {
@@ -1515,21 +1552,19 @@ function verHistorico() {
 
 function rellenaEstadistica(tabla, historial) {
   for (var h of historial) {
-    var invit = 0, pagado = 0, ninv = 1;
+    var invit = 0, pagado = 0;
     for (var c of h.c) {
       if (c[0] == 0) {
         invit = c[1];
       } else {
         tabla[c[0]][1] += c[1];
         pagado += c[1];
-        if (c[0] != h.p) ninv++;
       }
     }
-    invit /= ninv;
+    if (invit > 0) invit /= (h.c.length - 1);
     tabla[h.p][2] += pagado;
-    tabla[h.p][3] += invit;
     for (var c of h.c) {
-      if (c[0] != 0 && c[0] != h.p) tabla[c[0]][3] += invit;
+      if (c[0] != 0) tabla[c[0]][3] += invit;
     }
   }
   return tabla;
