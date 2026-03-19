@@ -1558,7 +1558,7 @@ function cancelarConsumicion() {
 
 // ─── Tu función (firma ampliada con historial) ───
 function ordenPagadores(clientes, historial) {
-  var inv = 0, cliRank = {};
+  var inv = 0, cliRank = {}, imp;
   for (var c of clientes) {
     if (c.id == 0) {
       inv = c.importe;
@@ -1573,7 +1573,11 @@ function ordenPagadores(clientes, historial) {
 
   for (var id in cliRank) {
     for (var id2 in cliRank) {
-      if (id != id2) cliRank[id].peso += cliRank[id2].importe + inv;
+      if (id != id2) {
+        imp = cliRank[id2].importe + inv;
+        cliRank[id].peso += imp;
+        cliRank[id2].peso -= imp;
+      }
     }
   }
 
@@ -1581,7 +1585,11 @@ function ordenPagadores(clientes, historial) {
     if (Object.hasOwn(cliRank, h.p)) {
       inv = 0;
       for (var c of h.c) if (c[0] == 0) inv = c[1] / (h.c.length - 1);
-      for (var c of h.c) if (c[0] != h.p && Object.hasOwn(cliRank, c[0])) cliRank[h.p].peso += c[1] + inv;
+      for (var c of h.c) if (c[0] != h.p && Object.hasOwn(cliRank, c[0])) {
+        imp = c[1] + inv;
+        cliRank[h.p].peso += imp;
+        cliRank[c[0]].peso -= imp;
+      }
     }
   }
 
