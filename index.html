@@ -1245,9 +1245,9 @@
             <tr>
               <th>Cliente</th>
               <th>Consumido</th>
-              <th>Pagado</th>
               <th>Invitado</th>
-              <th>Total</th>
+              <th>Cons+Invt</th>
+              <th>Pagado</th>
             </tr>
           </thead>
           <tbody id="stats-tbody"></tbody>
@@ -2487,15 +2487,14 @@ function rellenaEstadistica(tabla, historial) {
       if (c[0] == 0) {
         invit = c[1];
       } else {
+        // Consumido
         tabla[c[0]][1] += c[1];
-        pagado += c[1];
       }
+      pagado += c[1];
     }
     if (invit > 0) invit /= (h.c.length - 1);
-    tabla[h.p][2] += pagado;
-    for (var c of h.c) {
-      if (c[0] != 0) tabla[c[0]][3] += invit;
-    }
+    tabla[h.p][2] += invit;
+    tabla[h.p][3] += pagado;
   }
   return tabla;
 }
@@ -2525,25 +2524,28 @@ async function verEstadisticas() {
   // Renderizar filas en el mismo orden que CLIENTES (saltando id == 0)
   var tbody = document.getElementById('stats-tbody');
   tbody.innerHTML = '';
-  var totales = [0, 0, 0, 0];
+  var totales = [0, 0, 0, 0]; // consumido, invitado, cons+invt, pagado
 
   CLIENTES.forEach(function(c) {
     if (c.id == 0) return;
-    var fila = tablaFinal[c.id] || [c.nombre, 0, 0, 0];
-    var suma = (parseFloat(fila[2]) || 0) + (parseFloat(fila[3]) || 0);
+    var fila     = tablaFinal[c.id] || [c.nombre, 0, 0, 0];
+    var consumido = parseFloat(fila[1]) || 0;
+    var invitado  = parseFloat(fila[2]) || 0;
+    var consInvt  = consumido + invitado;
+    var pagado    = parseFloat(fila[3]) || 0;
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td>' + fila[0] + '</td>' +
-      '<td class="num">'        + (parseFloat(fila[1]) || 0).toFixed(2).replace('.', ',') + ' €</td>' +
-      '<td class="num">'        + (parseFloat(fila[2]) || 0).toFixed(2).replace('.', ',') + ' €</td>' +
-      '<td class="num">'        + (parseFloat(fila[3]) || 0).toFixed(2).replace('.', ',') + ' €</td>' +
-      '<td class="num-accent">' + suma.toFixed(2).replace('.', ',')                        + ' €</td>';
+      '<td>'                 + fila[0]                                   + '</td>' +
+      '<td class="num">'     + consumido.toFixed(2).replace('.', ',')    + ' €</td>' +
+      '<td class="num">'     + invitado.toFixed(2).replace('.', ',')     + ' €</td>' +
+      '<td class="num">'     + consInvt.toFixed(2).replace('.', ',') + ' €</td>' +
+      '<td class="num">'     + pagado.toFixed(2).replace('.', ',')       + ' €</td>';
     tbody.appendChild(tr);
 
-    totales[0] += parseFloat(fila[1]) || 0;
-    totales[1] += parseFloat(fila[2]) || 0;
-    totales[2] += parseFloat(fila[3]) || 0;
-    totales[3] += suma;
+    totales[0] += consumido;
+    totales[1] += invitado;
+    totales[2] += consInvt;
+    totales[3] += pagado;
   });
 
   var tfoot = document.getElementById('stats-tfoot');
