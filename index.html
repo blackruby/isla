@@ -728,23 +728,43 @@
     .stats-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 12px;
+      font-size: 14px;   /* tamaño legible */
     }
     .stats-table thead th {
       background: var(--surface2);
       padding: 10px 10px;
-      font-size: 9px;
+      font-size: 11px;
       font-weight: 800;
-      letter-spacing: .08em;
+      letter-spacing: .06em;
       text-transform: uppercase;
       color: var(--text-muted);
       text-align: right;
       white-space: nowrap;
       position: sticky;
       top: 0;
-      z-index: 1;
+      z-index: 2;
     }
-    .stats-table thead th:first-child { text-align: left; }
+    /* Primera columna sticky izquierda */
+    .stats-table th:first-child,
+    .stats-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      background: var(--surface);
+      text-align: left;
+    }
+    .stats-table thead th:first-child {
+      background: var(--surface2);
+      z-index: 4;
+    }
+    /* Última columna (Balance) — sin sticky */
+    .stats-table th:last-child,
+    .stats-table td:last-child {
+      background: var(--surface);
+    }
+    .stats-table thead th:last-child {
+      background: var(--surface2);
+    }
     .stats-table tbody tr {
       border-top: 1px solid rgba(255,255,255,.05);
       transition: background .1s;
@@ -757,21 +777,25 @@
       white-space: nowrap;
     }
     .stats-table td:first-child {
-      text-align: left;
       font-weight: 700;
       color: var(--text);
     }
-    .stats-table td.num { font-weight: 800; color: var(--text-muted); }
-    .stats-table td.num-accent { font-weight: 900; color: var(--accent-light); }
+    .stats-table td.num { font-weight: 700; color: var(--text-muted); }
+    .stats-table td.num-accent { font-weight: 700; color: var(--accent-light); }
+    /* Balance */
+    .stats-table td.balance-pos  { font-weight: 800; color: #f07070; background: rgba(240,112,112,.15); }
+    .stats-table td.balance-neg  { font-weight: 800; color: #50c8a0; background: rgba(80,200,160,.12); }
+    .stats-table td.balance-zero { font-weight: 700; color: var(--text-muted); }
     .stats-table tfoot td {
       padding: 10px 10px;
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 800;
       letter-spacing: .06em;
       text-transform: uppercase;
       color: var(--text-muted);
       border-top: 2px solid rgba(255,255,255,.1);
       text-align: right;
+      background: var(--surface);
     }
     .stats-table tfoot td:first-child { text-align: left; }
     .stats-footer {
@@ -1259,6 +1283,7 @@
               <th>Invitado</th>
               <th>Cons+Invt</th>
               <th>Pagado</th>
+              <th>Balance</th>
             </tr>
           </thead>
           <tbody id="stats-tbody"></tbody>
@@ -2543,18 +2568,22 @@ async function verEstadisticas() {
 
   CLIENTES.forEach(function(c) {
     if (c.id == 0) return;
-    var fila     = tablaFinal[c.id] || [c.nombre, 0, 0, 0];
+    var fila      = tablaFinal[c.id] || [c.nombre, 0, 0, 0];
     var consumido = parseFloat(fila[1]) || 0;
     var invitado  = parseFloat(fila[2]) || 0;
     var consInvt  = consumido + invitado;
     var pagado    = parseFloat(fila[3]) || 0;
+    var balance   = pagado - consInvt;
+    var balClass  = balance > 0.005 ? 'balance-pos' : balance < -0.005 ? 'balance-neg' : 'balance-zero';
+    var balText   = Math.abs(balance) < 0.005 ? '0,00 €' : Math.abs(balance).toFixed(2).replace('.', ',') + ' €';
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td>'                 + fila[0]                                   + '</td>' +
-      '<td class="num">'     + consumido.toFixed(2).replace('.', ',')    + ' €</td>' +
-      '<td class="num">'     + invitado.toFixed(2).replace('.', ',')     + ' €</td>' +
-      '<td class="num">'     + consInvt.toFixed(2).replace('.', ',') + ' €</td>' +
-      '<td class="num">'     + pagado.toFixed(2).replace('.', ',')       + ' €</td>';
+      '<td>'             + fila[0]                                     + '</td>' +
+      '<td class="num">' + consumido.toFixed(2).replace('.', ',')      + ' €</td>' +
+      '<td class="num">' + invitado.toFixed(2).replace('.', ',')       + ' €</td>' +
+      '<td class="num">' + consInvt.toFixed(2).replace('.', ',')       + ' €</td>' +
+      '<td class="num">' + pagado.toFixed(2).replace('.', ',')         + ' €</td>' +
+      '<td class="' + balClass + '">' + balText                        + '</td>';
     tbody.appendChild(tr);
 
     totales[0] += consumido;
@@ -2562,6 +2591,10 @@ async function verEstadisticas() {
     totales[2] += consInvt;
     totales[3] += pagado;
   });
+
+  var totalBalance = totales[3] - totales[2];
+  var tBalClass = totalBalance > 0.005 ? 'balance-pos' : totalBalance < -0.005 ? 'balance-neg' : 'balance-zero';
+  var tBalText  = Math.abs(totalBalance) < 0.005 ? '0,00 €' : Math.abs(totalBalance).toFixed(2).replace('.', ',') + ' €';
 
   var tfoot = document.getElementById('stats-tfoot');
   tfoot.innerHTML =
@@ -2571,6 +2604,7 @@ async function verEstadisticas() {
     '<td>' + totales[1].toFixed(2).replace('.', ',') + ' €</td>' +
     '<td>' + totales[2].toFixed(2).replace('.', ',') + ' €</td>' +
     '<td>' + totales[3].toFixed(2).replace('.', ',') + ' €</td>' +
+    '<td class="' + tBalClass + '">' + tBalText + '</td>' +
     '</tr>';
 
   document.getElementById('stats-loading').style.display = 'none';
