@@ -807,6 +807,53 @@
       gap: 8px; padding: 48px 24px;
       color: var(--text-muted); font-size: 13px; font-weight: 600;
     }
+    .stats-section-label {
+      font-size: 11px; font-weight: 800; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--text-muted);
+      padding: 0 2px;
+    }
+
+    /* Tabla balance cruzado — headers oblicuos */
+    .cross-table thead th {
+      height: 90px;
+      white-space: nowrap;
+      padding: 0;
+      vertical-align: bottom;
+      text-align: left;
+      background: var(--surface2);
+      position: sticky; top: 0; z-index: 2;
+    }
+    .cross-table thead th:first-child {
+      vertical-align: bottom;
+      text-align: left;
+      min-width: 90px;
+    }
+    .cross-table thead th .th-inner {
+      display: block;
+      transform: rotate(-55deg);
+      transform-origin: left bottom;
+      width: 28px;
+      margin-left: 14px;
+      margin-bottom: 6px;
+      font-size: 11px; font-weight: 800;
+      letter-spacing: .04em;
+      color: var(--text-muted);
+    }
+    .cross-table td {
+      font-size: 12px; font-weight: 700;
+      padding: 8px 10px;
+      text-align: right;
+      white-space: nowrap;
+      color: var(--text-muted);
+    }
+    .cross-table td:first-child {
+      font-size: 13px; font-weight: 700;
+      color: var(--text);
+      text-align: left;
+    }
+    .cross-table td.cx-pos { color: #f07070; background: rgba(240,112,112,.12); font-weight: 800; }
+    .cross-table td.cx-neg { color: #50c8a0; background: rgba(80,200,160,.10); font-weight: 800; }
+    .cross-table td.cx-self { background: rgba(255,255,255,.04); color: var(--text-muted); }
 
     /* ─── Pantallas de administración ──────────── */
     .admin-screen {
@@ -1270,28 +1317,42 @@
         <h2>Estadísticas</h2>
       </div>
 
-      <div class="stats-card" id="stats-card">
-        <div class="stats-loading" id="stats-loading">
-          <span class="material-icons-round" style="font-size:18px;opacity:.6">sync</span>
-          Cargando datos…
-        </div>
-        <table class="stats-table" id="stats-table" style="display:none">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Balance</th>
-              <th>Pagado</th>
-              <th>Cons+Invt</th>
-              <th>Consumido</th>
-              <th>Invitado</th>
-            </tr>
-          </thead>
-          <tbody id="stats-tbody"></tbody>
-          <tfoot id="stats-tfoot"></tfoot>
-        </table>
+      <div id="stats-loading" class="stats-loading">
+        <span class="material-icons-round" style="font-size:18px;opacity:.6">sync</span>
+        Cargando datos…
       </div>
 
-      <div class="stats-footer"></div>
+      <div id="stats-content" style="display:none;flex-direction:column;gap:20px;overflow-y:auto;flex:1;min-height:0;padding-bottom:calc(var(--nav-h) + 16px + var(--safe-bottom))">
+
+        <!-- Tabla 1: Posición global -->
+        <div class="stats-section-label">Posición global</div>
+        <div class="stats-card" style="overflow-x:auto;flex:none">
+          <table class="stats-table" id="stats-table">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Balance</th>
+                <th>Pagado</th>
+                <th>Cons+Invt</th>
+                <th>Consumido</th>
+                <th>Invitado</th>
+              </tr>
+            </thead>
+            <tbody id="stats-tbody"></tbody>
+            <tfoot id="stats-tfoot"></tfoot>
+          </table>
+        </div>
+
+        <!-- Tabla 2: Balance cruzado -->
+        <div class="stats-section-label">Balance cruzado</div>
+        <div class="stats-card" style="overflow-x:auto;flex:none">
+          <table class="stats-table cross-table" id="cross-table">
+            <thead id="cross-thead"></thead>
+            <tbody id="cross-tbody"></tbody>
+          </table>
+        </div>
+
+      </div>
     </div>
   </div>
 
@@ -2568,6 +2629,11 @@ function guardarTerraza() {
 }
 
 function rellenaEstadistica(tabla, historial) {
+  var balance = {};
+  for (var c1 in tabla) {
+    balance[c1] = {};
+    for (var c2 in tabla) balance[c1][c2] = 0;
+  }
   for (var h of historial) {
     var invit = 0, pagado = 0;
     for (var c of h.c) {
@@ -2586,15 +2652,26 @@ function rellenaEstadistica(tabla, historial) {
         if (c[0] != 0) tabla[c[0]][2] += invit;
       }
     }
+    // Balance
+    for (var c of h.c) {
+      if (c[0] != 0) balance[h.p][c[0]] += c[1] + invit;
+    }
   }
-  return tabla;
+  // Balance cruzado
+  var balanceCruz = structuredClone(balance);
+  for (var i in balance) {
+    for (var j in balance[i]) {
+      balanceCruz[i][j] = balance[i][j] - balance[j][i];
+    }
+  }
+  return { tabla: tabla, balance: balanceCruz };
 }
 
 async function verEstadisticas() {
   showScreen('screen-estadisticas', 'nav-stats');
 
-  document.getElementById('stats-loading').style.display = 'flex';
-  document.getElementById('stats-table').style.display   = 'none';
+  document.getElementById('stats-loading').style.display  = 'flex';
+  document.getElementById('stats-content').style.display  = 'none';
 
   var historial = [];
   try {
@@ -2603,19 +2680,20 @@ async function verEstadisticas() {
     console.warn('Error obteniendo historial para estadísticas:', err.message);
   }
 
-  // Construir objeto tabla inicial excluyendo id == 0
-  // Cada entrada: [nombre, consumido, pagado, invitado]  (4 elementos; la 5ª col se calcula al pintar)
+  // Construir tabla inicial (sin id == 0)
   var tablaInicial = {};
   CLIENTES.forEach(function(c) {
     if (c.id != 0) tablaInicial[c.id] = [c.nombre, 0, 0, 0];
   });
 
-  var tablaFinal = rellenaEstadistica(tablaInicial, historial);
+  var resultado   = rellenaEstadistica(tablaInicial, historial);
+  var tablaFinal  = resultado.tabla;
+  var balanceCruz = resultado.balance;
 
-  // Renderizar filas en el mismo orden que CLIENTES (saltando id == 0)
-  var tbody = document.getElementById('stats-tbody');
+  // ── Tabla 1: Posición global ──────────────
+  var tbody  = document.getElementById('stats-tbody');
   tbody.innerHTML = '';
-  var totales = [0, 0, 0, 0]; // consumido, invitado, cons+invt, pagado
+  var totales = [0, 0, 0, 0];
 
   CLIENTES.forEach(function(c) {
     if (c.id == 0) return;
@@ -2636,7 +2714,6 @@ async function verEstadisticas() {
       '<td class="num">' + consumido.toFixed(2).replace('.', ',')      + ' €</td>' +
       '<td class="num">' + invitado.toFixed(2).replace('.', ',')       + ' €</td>';
     tbody.appendChild(tr);
-
     totales[0] += consumido;
     totales[1] += invitado;
     totales[2] += consInvt;
@@ -2646,11 +2723,8 @@ async function verEstadisticas() {
   var totalBalance = totales[3] - totales[2];
   var tBalClass = totalBalance > 0.005 ? 'balance-pos' : totalBalance < -0.005 ? 'balance-neg' : 'balance-zero';
   var tBalText  = Math.abs(totalBalance) < 0.005 ? '0,00 €' : Math.abs(totalBalance).toFixed(2).replace('.', ',') + ' €';
-
-  var tfoot = document.getElementById('stats-tfoot');
-  tfoot.innerHTML =
-    '<tr>' +
-    '<td>TOTAL</td>' +
+  document.getElementById('stats-tfoot').innerHTML =
+    '<tr><td>TOTAL</td>' +
     '<td class="' + tBalClass + '">' + tBalText + '</td>' +
     '<td>' + totales[3].toFixed(2).replace('.', ',') + ' €</td>' +
     '<td>' + totales[2].toFixed(2).replace('.', ',') + ' €</td>' +
@@ -2658,8 +2732,50 @@ async function verEstadisticas() {
     '<td>' + totales[1].toFixed(2).replace('.', ',') + ' €</td>' +
     '</tr>';
 
+  // ── Tabla 2: Balance cruzado ──────────────
+  // Solo clientes con id != 0, en el mismo orden que CLIENTES
+  var clis = CLIENTES.filter(function(c) { return c.id != 0; });
+
+  // Cabecera: primera celda vacía + nombre oblicuo por cada cliente-columna
+  var thead = document.getElementById('cross-thead');
+  var trH = document.createElement('tr');
+  var thEmpty = document.createElement('th');
+  thEmpty.innerHTML = '<span class="th-inner">&nbsp;</span>';
+  trH.appendChild(thEmpty);
+  clis.forEach(function(c) {
+    var th = document.createElement('th');
+    th.innerHTML = '<span class="th-inner">' + c.nombre + '</span>';
+    trH.appendChild(th);
+  });
+  thead.innerHTML = '';
+  thead.appendChild(trH);
+
+  // Filas
+  var crossTbody = document.getElementById('cross-tbody');
+  crossTbody.innerHTML = '';
+  clis.forEach(function(fila) {
+    var tr = document.createElement('tr');
+    var tdNombre = document.createElement('td');
+    tdNombre.textContent = fila.nombre;
+    tr.appendChild(tdNombre);
+
+    clis.forEach(function(col) {
+      var td = document.createElement('td');
+      if (fila.id === col.id) {
+        td.className = 'cx-self';
+        td.textContent = '—';
+      } else {
+        var val = (balanceCruz[fila.id] && balanceCruz[fila.id][col.id]) || 0;
+        td.className = val > 0.005 ? 'cx-pos' : val < -0.005 ? 'cx-neg' : '';
+        td.textContent = Math.abs(val) < 0.005 ? '0,00' : Math.abs(val).toFixed(2).replace('.', ',');
+      }
+      tr.appendChild(td);
+    });
+    crossTbody.appendChild(tr);
+  });
+
   document.getElementById('stats-loading').style.display = 'none';
-  document.getElementById('stats-table').style.display   = 'table';
+  document.getElementById('stats-content').style.display = 'flex';
 }
 </script>
 </body>
