@@ -1509,16 +1509,65 @@ function mostrarEstadoCarga(msg, esError) {
 //  NAVEGACIÓN
 // ═══════════════════════════════════════════
 
-function showScreen(screenId, navId) {
+// ── Pantalla activa actual (para saber adónde retroceder) ──
+var _screenActual = 'home';
+
+function showScreen(screenId, navId, sinHistorial) {
   document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   document.getElementById(screenId).classList.add('active');
   document.getElementById(navId).classList.add('active');
+  _screenActual = screenId;
+
+  if (!sinHistorial && screenId !== 'screen-home') {
+    history.pushState({ screen: screenId }, '');
+  }
 }
 
 function goHome() {
-  showScreen('screen-home', 'nav-home');
+  showScreen('screen-home', 'nav-home', true);
+  history.replaceState({ screen: 'home' }, '');
 }
+
+// ── Gestión del botón "atrás" del sistema ──
+history.replaceState({ screen: 'home' }, '');
+
+// Cada modal que se abre añade su propia entrada al historial
+function pushModalState(nombre) {
+  history.pushState({ screen: _screenActual, modal: nombre }, '');
+}
+
+window.addEventListener('popstate', function(e) {
+  var state = e.state || {};
+
+  // Si el estado que quedó atrás tiene modal, cerrarlo
+  if (state.modal) {
+    if (state.modal === 'hist-modal')  { cerrarHistModalBtn(); return; }
+    if (state.modal === 'hist-list')   { cerrarHistListBtn();  return; }
+    if (state.modal === 'pago')        { cancelarPago();       return; }
+    if (state.modal === 'productos')   { cerrarModalBtn();     return; }
+  }
+
+  // Sin modal: si hay alguno abierto, cerrarlo (seguridad)
+  if (document.getElementById('hist-modal-overlay').classList.contains('open')) {
+    cerrarHistModalBtn(); return;
+  }
+  if (document.getElementById('hist-list-overlay').classList.contains('open')) {
+    cerrarHistListBtn(); return;
+  }
+  if (document.getElementById('pago-overlay').classList.contains('open')) {
+    cancelarPago(); return;
+  }
+  if (document.getElementById('modal-overlay').classList.contains('open')) {
+    cerrarModalBtn(); return;
+  }
+
+  // Sin modales: navegar según pantalla
+  if (_screenActual === 'screen-home') return; // dejar salir
+
+  showScreen('screen-home', 'nav-home', true);
+  history.replaceState({ screen: 'home' }, '');
+});
 
 // ═══════════════════════════════════════════
 //  PANTALLA: NUEVA CONSUMICIÓN
@@ -1682,8 +1731,7 @@ async function guardarConsumicion(datos) {
   var sel = document.getElementById('pago-select');
   sel.innerHTML = '<option disabled>Cargando…</option>';
   document.getElementById('pago-overlay').classList.add('open');
-
-  // Obtener historial de Redis
+  pushModalState('pago');
   var historial = [];
   try {
     historial = await obtenerHistorial();
@@ -1822,6 +1870,7 @@ function abrirModal(clienteId) {
 
   actualizarSubtotalModal();
   document.getElementById('modal-overlay').classList.add('open');
+  pushModalState('productos');
 }
 
 function cambiarCantidad(prodId, delta, event) {
@@ -2091,6 +2140,7 @@ function abrirHistDia(items) {
   });
 
   document.getElementById('hist-list-overlay').classList.add('open');
+  pushModalState('hist-list');
 }
 
 // ── Mostrar detalle de una comanda ───────────
@@ -2153,6 +2203,7 @@ function mostrarComanda(item) {
   });
 
   document.getElementById('hist-modal-overlay').classList.add('open');
+  pushModalState('hist-modal');
 }
 
 function cerrarHistModalBtn() {
