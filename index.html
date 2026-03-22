@@ -757,7 +757,7 @@
       background: var(--surface2);
       z-index: 4;
     }
-    /* Última columna (Balance) — sin sticky */
+    /* Última columna — sin sticky */
     .stats-table th:last-child,
     .stats-table td:last-child {
       background: var(--surface);
@@ -1279,11 +1279,11 @@
           <thead>
             <tr>
               <th>Cliente</th>
+              <th>Balance</th>
+              <th>Pagado</th>
+              <th>Cons+Invt</th>
               <th>Consumido</th>
               <th>Invitado</th>
-              <th>Cons+Invt</th>
-              <th>Pagado</th>
-              <th>Balance</th>
             </tr>
           </thead>
           <tbody id="stats-tbody"></tbody>
@@ -2630,11 +2630,11 @@ async function verEstadisticas() {
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td>'             + fila[0]                                     + '</td>' +
-      '<td class="num">' + consumido.toFixed(2).replace('.', ',')      + ' €</td>' +
-      '<td class="num">' + invitado.toFixed(2).replace('.', ',')       + ' €</td>' +
-      '<td class="num">' + consInvt.toFixed(2).replace('.', ',')       + ' €</td>' +
+      '<td class="' + balClass + '">' + balText                        + '</td>' +
       '<td class="num">' + pagado.toFixed(2).replace('.', ',')         + ' €</td>' +
-      '<td class="' + balClass + '">' + balText                        + '</td>';
+      '<td class="num">' + consInvt.toFixed(2).replace('.', ',')       + ' €</td>' +
+      '<td class="num">' + consumido.toFixed(2).replace('.', ',')      + ' €</td>' +
+      '<td class="num">' + invitado.toFixed(2).replace('.', ',')       + ' €</td>';
     tbody.appendChild(tr);
 
     totales[0] += consumido;
@@ -2651,11 +2651,11 @@ async function verEstadisticas() {
   tfoot.innerHTML =
     '<tr>' +
     '<td>TOTAL</td>' +
+    '<td class="' + tBalClass + '">' + tBalText + '</td>' +
+    '<td>' + totales[3].toFixed(2).replace('.', ',') + ' €</td>' +
+    '<td>' + totales[2].toFixed(2).replace('.', ',') + ' €</td>' +
     '<td>' + totales[0].toFixed(2).replace('.', ',') + ' €</td>' +
     '<td>' + totales[1].toFixed(2).replace('.', ',') + ' €</td>' +
-    '<td>' + totales[2].toFixed(2).replace('.', ',') + ' €</td>' +
-    '<td>' + totales[3].toFixed(2).replace('.', ',') + ' €</td>' +
-    '<td class="' + tBalClass + '">' + tBalText + '</td>' +
     '</tr>';
 
   document.getElementById('stats-loading').style.display = 'none';
