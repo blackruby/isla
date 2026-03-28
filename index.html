@@ -813,7 +813,22 @@
       padding: 0 2px;
     }
 
-    /* Tabla balance cruzado — headers oblicuos */
+    /* Desglose por cliente */
+    .desglose-table { font-size: 13px; }
+    .desglose-table thead th { font-size: 10px; background: var(--surface2); position: sticky; top: 0; z-index: 1; }
+    .desglose-table tbody tr { cursor: default; }
+    .desglose-table tfoot td {
+      padding: 10px 10px;
+      font-size: 11px; font-weight: 800; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--text-muted);
+      border-top: 2px solid rgba(255,255,255,.1);
+      text-align: right; background: var(--surface);
+    }
+    .desglose-table tfoot td:first-child { text-align: left; }
+
+    /* Filas de la tabla de estadísticas son clickables */
+    #stats-tbody tr { cursor: pointer; }
+    #stats-tbody tr:active { background: var(--surface2); }
     .cross-table thead th {
       height: 90px;
       white-space: nowrap;
@@ -1309,6 +1324,39 @@
     </div>
   </div>
 
+  <!-- ── MODAL: DESGLOSE CLIENTE ── -->
+  <div id="desglose-overlay" class="modal-overlay" onclick="cerrarDesglose(event)">
+    <div class="modal-sheet" id="desglose-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <span class="modal-title" id="desglose-title">Desglose</span>
+        <button class="modal-close" onclick="cerrarDesgloseBtn()">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <div style="overflow-x:auto;flex:1;min-height:0">
+        <table class="stats-table desglose-table" id="desglose-table">
+          <thead>
+            <tr>
+              <th style="text-align:left">Fecha</th>
+              <th>Pagado</th>
+              <th>Cons+Invt</th>
+              <th>Consumido</th>
+              <th>Invitado</th>
+            </tr>
+          </thead>
+          <tbody id="desglose-tbody"></tbody>
+          <tfoot id="desglose-tfoot"></tfoot>
+        </table>
+      </div>
+      <!-- Balance final -->
+      <div class="modal-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:12px 20px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <span style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)">Balance</span>
+        <span id="desglose-balance" style="font-size:22px;font-weight:900;letter-spacing:-.03em"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- ── SCREEN: ESTADÍSTICAS ── -->
   <div id="screen-estadisticas" class="screen">
     <div class="inner-screen">
@@ -1607,9 +1655,13 @@ window.addEventListener('popstate', function(e) {
     if (state.modal === 'hist-list')   { cerrarHistListBtn();  return; }
     if (state.modal === 'pago')        { cancelarPago();       return; }
     if (state.modal === 'productos')   { cerrarModalBtn();     return; }
+    if (state.modal === 'desglose')    { cerrarDesgloseBtn();  return; }
   }
 
   // Sin modal: si hay alguno abierto, cerrarlo (seguridad)
+  if (document.getElementById('desglose-overlay').classList.contains('open')) {
+    cerrarDesgloseBtn(); return;
+  }
   if (document.getElementById('hist-modal-overlay').classList.contains('open')) {
     cerrarHistModalBtn(); return;
   }
@@ -2018,7 +2070,8 @@ document.addEventListener('keydown', function(e) {
 // ═══════════════════════════════════════════
 
 // Historial con clave adjunta: [{key, data}]
-var _histItems = [];
+var _histItems       = [];  // historial con clave, para el calendario
+var _historialStats  = [];  // historial con clave, para el desglose de estadísticas
 
 async function verHistorico() {
   showScreen('screen-historico', 'nav-hist');
@@ -2675,7 +2728,8 @@ async function verEstadisticas() {
 
   var historial = [];
   try {
-    historial = await obtenerHistorial();
+    _historialStats = await obtenerHistorialConClaves();
+    historial = _historialStats.map(function(item) { return item.data; });
   } catch(err) {
     console.warn('Error obteniendo historial para estadísticas:', err.message);
   }
@@ -2713,6 +2767,9 @@ async function verEstadisticas() {
       '<td class="num">' + consInvt.toFixed(2).replace('.', ',')       + ' €</td>' +
       '<td class="num">' + consumido.toFixed(2).replace('.', ',')      + ' €</td>' +
       '<td class="num">' + invitado.toFixed(2).replace('.', ',')       + ' €</td>';
+    (function(clienteId, nombre) {
+      tr.addEventListener('click', function() { abrirDesglose(clienteId, nombre); });
+    })(c.id, c.nombre);
     tbody.appendChild(tr);
     totales[0] += consumido;
     totales[1] += invitado;
@@ -2776,6 +2833,92 @@ async function verEstadisticas() {
 
   document.getElementById('stats-loading').style.display = 'none';
   document.getElementById('stats-content').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════
+//  DESGLOSE POR CLIENTE
+// ═══════════════════════════════════════════
+
+function abrirDesglose(clienteId, nombre) {
+  var historial = _historialStats;
+  document.getElementById('desglose-title').textContent = nombre;
+
+  var MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var tbody = document.getElementById('desglose-tbody');
+  tbody.innerHTML = '';
+
+  var totPagado = 0, totConsumido = 0, totInvitado = 0;
+
+  // Filtrar comandas donde participó este cliente y ordenar cronológicamente
+  var entradas = historial.filter(function(item) {
+    var h = item.data || item;
+    return h.c && h.c.some(function(par) { return par[0] == clienteId; });
+  });
+  entradas.sort(function(a, b) { return a.key < b.key ? -1 : 1; });
+
+  entradas.forEach(function(item) {
+    var key = item.key;
+    var h   = item.data || item;
+
+    var yy = 2000 + parseInt(key.substring(0,2),10);
+    var mm = parseInt(key.substring(2,4),10) - 1;
+    var dd = parseInt(key.substring(4,6),10);
+    var hh = key.substring(6,8);
+    var mi = key.substring(8,10);
+    var fecha = dd + ' ' + MESES[mm] + ' ' + String(yy).slice(-2) + ' ' + hh + ':' + mi;
+
+    var consumido = 0, invit = 0, pagado = 0;
+    for (var c of h.c) {
+      if (c[0] == clienteId) consumido = c[1];
+      if (c[0] == 0) invit = c[1];
+    }
+    if (invit > 0) invit /= (h.c.length - 1);
+    if (h.p == clienteId) {
+      for (var c of h.c) { if (c[0] != 0) pagado += c[1]; }
+      pagado += invit;
+    }
+
+    var consInvt = consumido + invit;
+    totPagado    += pagado;
+    totConsumido += consumido;
+    totInvitado  += invit;
+
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td style="text-align:left;font-size:12px">'  + fecha + '</td>' +
+      '<td class="num">' + (pagado > 0 ? pagado.toFixed(2).replace('.',',') + ' €' : '—') + '</td>' +
+      '<td class="num">' + consInvt.toFixed(2).replace('.',',')  + ' €</td>' +
+      '<td class="num">' + consumido.toFixed(2).replace('.',',') + ' €</td>' +
+      '<td class="num">' + invit.toFixed(2).replace('.',',')     + ' €</td>';
+    tbody.appendChild(tr);
+  });
+
+  // Totales
+  var totConsInvt = totConsumido + totInvitado;
+  document.getElementById('desglose-tfoot').innerHTML =
+    '<tr>' +
+    '<td>TOTAL</td>' +
+    '<td>' + totPagado.toFixed(2).replace('.',',')    + ' €</td>' +
+    '<td>' + totConsInvt.toFixed(2).replace('.',',')  + ' €</td>' +
+    '<td>' + totConsumido.toFixed(2).replace('.',',') + ' €</td>' +
+    '<td>' + totInvitado.toFixed(2).replace('.',',')  + ' €</td>' +
+    '</tr>';
+
+  // Balance
+  var balance = totPagado - totConsInvt;
+  var balEl   = document.getElementById('desglose-balance');
+  balEl.textContent = Math.abs(balance).toFixed(2).replace('.',',') + ' €';
+  balEl.style.color = balance > 0.005 ? '#f07070' : balance < -0.005 ? '#50c8a0' : 'var(--text-muted)';
+
+  document.getElementById('desglose-overlay').classList.add('open');
+  pushModalState('desglose');
+}
+
+function cerrarDesgloseBtn() {
+  document.getElementById('desglose-overlay').classList.remove('open');
+}
+function cerrarDesglose(e) {
+  if (e.target === document.getElementById('desglose-overlay')) cerrarDesgloseBtn();
 }
 </script>
 </body>
