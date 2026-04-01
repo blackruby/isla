@@ -1334,7 +1334,8 @@
           <span class="material-icons-round">close</span>
         </button>
       </div>
-      <div style="overflow-x:auto;flex:1;min-height:0">
+      <!-- Zona scrollable: solo las filas de datos -->
+      <div style="overflow-x:auto;overflow-y:auto;flex:1;min-height:0">
         <table class="stats-table desglose-table" id="desglose-table">
           <thead>
             <tr>
@@ -1346,11 +1347,16 @@
             </tr>
           </thead>
           <tbody id="desglose-tbody"></tbody>
+        </table>
+      </div>
+      <!-- Totales fijos -->
+      <div style="overflow-x:auto;flex-shrink:0;border-top:2px solid rgba(255,255,255,.1)">
+        <table class="stats-table desglose-table" style="width:100%">
           <tfoot id="desglose-tfoot"></tfoot>
         </table>
       </div>
-      <!-- Balance final -->
-      <div class="modal-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:12px 20px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <!-- Balance fijo -->
+      <div style="border-top:1px solid rgba(255,255,255,.07);padding:12px 20px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
         <span style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)">Balance</span>
         <span id="desglose-balance" style="font-size:22px;font-weight:900;letter-spacing:-.03em"></span>
       </div>
@@ -2854,7 +2860,7 @@ function abrirDesglose(clienteId, nombre) {
     var h = item.data || item;
     return h.c && h.c.some(function(par) { return par[0] == clienteId; });
   });
-  entradas.sort(function(a, b) { return a.key < b.key ? -1 : 1; });
+  entradas.sort(function(a, b) { return a.key > b.key ? -1 : 1; });
 
   entradas.forEach(function(item) {
     var key = item.key;
