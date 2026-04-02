@@ -2290,10 +2290,7 @@ function mostrarComanda(item) {
   var pagadorId = String(data.p);
   var consumos  = data.c || [];
 
-  // Calcular total
-  var total = consumos.reduce(function(s, par) {
-    return s + (par[0] !== 0 ? par[1] : 0);
-  }, 0);
+  var total = consumos.reduce(function(s, par) { return s + par[1]; }, 0);
 
   // Fila de total
   var totalRow = document.createElement('div');
@@ -2305,7 +2302,6 @@ function mostrarComanda(item) {
 
   // Fila por cliente
   consumos.forEach(function(par) {
-    if (par[0] === 0) return; // skip id=0
     var cId     = String(par[0]);
     var importe = par[1];
     var cli     = CLIENTES.find(function(c) { return String(c.id) === cId; });
