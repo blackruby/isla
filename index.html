@@ -816,7 +816,7 @@
     /* Desglose por cliente */
     .desglose-table { font-size: 13px; }
     .desglose-table thead th { font-size: 10px; background: var(--surface2); position: sticky; top: 0; z-index: 1; }
-    .desglose-table tbody tr { cursor: default; }
+    .desglose-table tbody tr { cursor: pointer; }
     .desglose-table tfoot td {
       padding: 10px 10px;
       font-size: 11px; font-weight: 800; letter-spacing: .06em;
@@ -2893,6 +2893,7 @@ function abrirDesglose(clienteId, nombre) {
       '<td class="num">' + consumido.toFixed(2).replace('.',',') + ' €</td>' +
       '<td class="num">' + invit.toFixed(2).replace('.',',')     + ' €</td>';
     tbody.appendChild(tr);
+    tr.addEventListener('click', function() { mostrarComanda(item); });
   });
 
   // Totales
