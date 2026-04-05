@@ -1655,9 +1655,13 @@ function pushModalState(nombre) {
 window.addEventListener('popstate', function(e) {
   var state = e.state || {};
 
+  // Priorizar cerrar hist-modal si está abierto (submodal)
+  if (document.getElementById('hist-modal-overlay').classList.contains('open')) {
+    cerrarHistModalBtn(); return;
+  }
+
   // Si el estado que quedó atrás tiene modal, cerrarlo
   if (state.modal) {
-    if (state.modal === 'hist-modal')  { cerrarHistModalBtn(); return; }
     if (state.modal === 'hist-list')   { cerrarHistListBtn();  return; }
     if (state.modal === 'pago')        { cancelarPago();       return; }
     if (state.modal === 'productos')   { cerrarModalBtn();     return; }
@@ -1667,9 +1671,6 @@ window.addEventListener('popstate', function(e) {
   // Sin modal: si hay alguno abierto, cerrarlo (seguridad)
   if (document.getElementById('desglose-overlay').classList.contains('open')) {
     cerrarDesgloseBtn(); return;
-  }
-  if (document.getElementById('hist-modal-overlay').classList.contains('open')) {
-    cerrarHistModalBtn(); return;
   }
   if (document.getElementById('hist-list-overlay').classList.contains('open')) {
     cerrarHistListBtn(); return;
