@@ -2483,6 +2483,12 @@ function addProductoRow(p) {
   });
 
   tbody.appendChild(tr);
+
+  // Dar visibilidad y foco
+  setTimeout(function() {
+    tr.querySelector('input').focus();
+    tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 0);
 }
 
 function eliminarProductoRow(btn) {
