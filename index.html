@@ -2378,6 +2378,7 @@ function verProductos() {
 }
 
 function addProductoRow(p) {
+  var isNew = !p;
   p = p || { id: ++_nextProdId, icono: '', descripcion: '', precio: 0 };
   var tbody = document.getElementById('productos-admin-tbody');
   var tr = document.createElement('tr');
@@ -2484,11 +2485,13 @@ function addProductoRow(p) {
 
   tbody.appendChild(tr);
 
-  // Dar visibilidad y foco
-  setTimeout(function() {
-    tr.querySelector('input').focus();
-    tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 0);
+  // Dar visibilidad y foco al producto si es nuevo
+  if (isNew) {
+    setTimeout(function() {
+      tr.querySelector('input').focus();
+      tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 0);
+  }
 }
 
 function eliminarProductoRow(btn) {
