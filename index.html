@@ -826,6 +826,21 @@
     }
     .desglose-table tfoot td:first-child { text-align: left; }
 
+    /* Tabla de cruces de pagos */
+    .cruces-table { font-size: 12px; }
+    .cruces-table thead th { font-size: 10px; background: var(--surface2); position: sticky; top: 0; z-index: 1; }
+    .cruces-table tbody tr { cursor: pointer; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .cruces-table tbody tr:hover { background: rgba(255,255,255,.04); }
+    .cruces-table td { padding: 8px 10px; text-align: right; }
+    .cruces-table td:first-child { text-align: left; }
+    .cruces-table td.cruces-paid { color: rgba(255,255,255,.18); font-weight: 700; }
+    .cruces-table tfoot td { font-weight: 700; border-top: 1px solid rgba(255,255,255,.08); }
+    .cruces-saldo { margin-top: 12px; padding: 12px 16px; background: var(--surface2); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1.5px solid rgba(255,255,255,.08); }
+    .cruces-saldo-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+    .cruces-saldo-value { font-size: 18px; font-weight: 900; letter-spacing: -.02em; }
+    .cruces-saldo-debe { color: #f07070; }
+    .cruces-saldo-cobra { color: #50c8a0; }
+
     /* Filas de la tabla de estadísticas son clickables */
     #stats-tbody tr { cursor: pointer; }
     #stats-tbody tr:active { background: var(--surface2); }
@@ -1363,6 +1378,43 @@
     </div>
   </div>
 
+  <!-- ── MODAL: CRUCES DE PAGOS ── -->
+  <div id="cruces-overlay" class="modal-overlay" onclick="cerrarCrucesModal(event)">
+    <div class="modal-sheet" id="cruces-sheet" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <span class="modal-title" id="cruces-title">Cruces de pagos</span>
+        <button class="modal-close" onclick="cerrarCrucesModalBtn()">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <!-- Zona scrollable: tabla de cruces -->
+      <div style="overflow-x:auto;overflow-y:auto;flex:1;min-height:0">
+        <table class="stats-table cruces-table" id="cruces-table">
+          <thead>
+            <tr>
+              <th style="text-align:left">Fecha</th>
+              <th id="cruces-col1-header">Cliente 1</th>
+              <th id="cruces-col2-header">Cliente 2</th>
+            </tr>
+          </thead>
+          <tbody id="cruces-tbody"></tbody>
+          <tfoot id="cruces-tfoot"></tfoot>
+        </table>
+      </div>
+      <!-- Saldo final -->
+      <div style="flex-shrink:0;padding:16px 20px;border-top:1px solid rgba(255,255,255,.07)">
+        <div class="cruces-saldo">
+          <span class="cruces-saldo-label">Saldo final</span>
+          <div>
+            <span id="cruces-saldo-cliente1" style="font-weight:600;margin-right:8px"></span>
+            <span id="cruces-saldo-valor" class="cruces-saldo-value"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── SCREEN: ESTADÍSTICAS ── -->
   <div id="screen-estadisticas" class="screen">
     <div class="inner-screen">
@@ -1666,9 +1718,13 @@ window.addEventListener('popstate', function(e) {
     if (state.modal === 'pago')        { cancelarPago();       return; }
     if (state.modal === 'productos')   { cerrarModalBtn();     return; }
     if (state.modal === 'desglose')    { cerrarDesgloseBtn();  return; }
+    if (state.modal === 'cruces')      { cerrarCrucesModalBtn(); return; }
   }
 
   // Sin modal: si hay alguno abierto, cerrarlo (seguridad)
+  if (document.getElementById('cruces-overlay').classList.contains('open')) {
+    cerrarCrucesModalBtn(); return;
+  }
   if (document.getElementById('desglose-overlay').classList.contains('open')) {
     cerrarDesgloseBtn(); return;
   }
@@ -2837,6 +2893,13 @@ async function verEstadisticas() {
         var val = (balanceCruz[fila.id] && balanceCruz[fila.id][col.id]) || 0;
         td.className = val > 0.005 ? 'cx-pos' : val < -0.005 ? 'cx-neg' : '';
         td.textContent = Math.abs(val) < 0.005 ? '0,00' : Math.abs(val).toFixed(2).replace('.', ',');
+        // Agregar event listener para abrir modal de cruces
+        td.style.cursor = 'pointer';
+        td.addEventListener('click', (function(clienteFila, clienteCol) {
+          return function() {
+            abrirCrucesModal(clienteFila, clienteCol);
+          };
+        })(fila, col));
       }
       tr.appendChild(td);
     });
@@ -2932,6 +2995,152 @@ function cerrarDesgloseBtn() {
 }
 function cerrarDesglose(e) {
   if (e.target === document.getElementById('desglose-overlay')) cerrarDesgloseBtn();
+}
+
+// ═══════════════════════════════════════════
+//  CRUCES DE PAGOS
+// ═══════════════════════════════════════════
+
+function abrirCrucesModal(cliente1, cliente2) {
+  var historial = _historialStats;
+
+  // Títulos del modal
+  document.getElementById('cruces-title').textContent = cliente1.nombre + ' ↔ ' + cliente2.nombre;
+  document.getElementById('cruces-col1-header').textContent = cliente1.nombre;
+  document.getElementById('cruces-col2-header').textContent = cliente2.nombre;
+
+  var MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var tbody = document.getElementById('cruces-tbody');
+  var tfoot = document.getElementById('cruces-tfoot');
+  tbody.innerHTML = '';
+  tfoot.innerHTML = '';
+
+  var saldoTotal = 0;
+  var totalCliente1 = 0;
+  var totalCliente2 = 0;
+  var filas = [];
+
+  historial.forEach(function(item) {
+    var h = item.data || item;
+    var key = item.key;
+    var participan1 = h.c.some(function(par) { return par[0] == cliente1.id; });
+    var participan2 = h.c.some(function(par) { return par[0] == cliente2.id; });
+    if (!participan1 || !participan2) return;
+
+    var consumo1 = 0, consumo2 = 0;
+    var invitados = h.c.find(function(par) { return par[0] == 0; }) || [0, 0];
+    var invit = invitados[1] || 0;
+
+    for (var c of h.c) {
+      if (c[0] == cliente1.id) consumo1 = c[1];
+      if (c[0] == cliente2.id) consumo2 = c[1];
+    }
+
+    var numClientes = h.c.length - 1;
+    if (invit > 0 && numClientes > 0) {
+      var invitPorCliente = invit / numClientes;
+      consumo1 += invitPorCliente;
+      consumo2 += invitPorCliente;
+    }
+
+    if (h.p != cliente1.id && h.p != cliente2.id) return;
+
+    filas.push({ key: key, data: h, consumo1: consumo1, consumo2: consumo2 });
+  });
+
+  filas.sort(function(a, b) {
+    return a.key < b.key ? 1 : a.key > b.key ? -1 : 0;
+  });
+
+  filas.forEach(function(item) {
+    var h = item.data;
+    var key = item.key;
+    var consumo1 = item.consumo1;
+    var consumo2 = item.consumo2;
+
+    var yy = 2000 + parseInt(key.substring(0,2),10);
+    var mm = parseInt(key.substring(2,4),10) - 1;
+    var dd = parseInt(key.substring(4,6),10);
+    var hh = key.substring(6,8);
+    var mi = key.substring(8,10);
+    var fecha = dd + ' ' + MESES[mm] + ' ' + String(yy).slice(-2) + ' ' + hh + ':' + mi;
+
+    var tr = document.createElement('tr');
+    var tdFecha = document.createElement('td');
+    tdFecha.style.textAlign = 'left';
+    tdFecha.style.fontSize = '12px';
+    tdFecha.textContent = fecha;
+    tr.appendChild(tdFecha);
+
+    var tdCliente1 = document.createElement('td');
+    var tdCliente2 = document.createElement('td');
+    tdCliente1.className = 'num';
+    tdCliente2.className = 'num';
+
+    if (h.p == cliente1.id) {
+      tdCliente1.textContent = '✓ Pagó';
+      tdCliente1.className = 'num cruces-paid';
+      tdCliente2.textContent = consumo2.toFixed(2).replace('.', ',') + ' €';
+      saldoTotal += consumo2;
+      totalCliente2 += consumo2;
+    } else {
+      tdCliente1.textContent = consumo1.toFixed(2).replace('.', ',') + ' €';
+      tdCliente2.textContent = '✓ Pagó';
+      tdCliente2.className = 'num cruces-paid';
+      saldoTotal -= consumo1;
+      totalCliente1 += consumo1;
+    }
+
+    tr.appendChild(tdCliente1);
+    tr.appendChild(tdCliente2);
+    tr.addEventListener('click', function() { mostrarComanda(item); });
+    tbody.appendChild(tr);
+  });
+
+  var trTotal = document.createElement('tr');
+  var tdLabel = document.createElement('td');
+  tdLabel.style.textAlign = 'left';
+  tdLabel.style.fontWeight = '700';
+  tdLabel.textContent = 'TOTAL';
+  trTotal.appendChild(tdLabel);
+
+  var tdTot1 = document.createElement('td');
+  var tdTot2 = document.createElement('td');
+  tdTot1.className = 'num';
+  tdTot2.className = 'num';
+  tdTot1.textContent = totalCliente1.toFixed(2).replace('.', ',') + ' €';
+  tdTot2.textContent = totalCliente2.toFixed(2).replace('.', ',') + ' €';
+  tdTot1.style.fontWeight = '700';
+  tdTot2.style.fontWeight = '700';
+
+  trTotal.appendChild(tdTot1);
+  trTotal.appendChild(tdTot2);
+  tfoot.appendChild(trTotal);
+
+  var saldoElem = document.getElementById('cruces-saldo-valor');
+  var cliente1Span = document.getElementById('cruces-saldo-cliente1');
+  var absValue = Math.abs(saldoTotal).toFixed(2).replace('.', ',');
+  saldoElem.textContent = absValue + ' €';
+  saldoElem.className = 'cruces-saldo-value';
+
+  if (saldoTotal > 0.005) {
+    cliente1Span.textContent = cliente2.nombre + ' debe:';
+  } else if (saldoTotal < -0.005) {
+    cliente1Span.textContent = cliente1.nombre + ' debe:';
+  } else {
+    cliente1Span.textContent = 'Saldo neto:';
+  }
+
+  document.getElementById('cruces-overlay').classList.add('open');
+  pushModalState('cruces');
+}
+
+function cerrarCrucesModalBtn() {
+  document.getElementById('cruces-overlay').classList.remove('open');
+}
+
+function cerrarCrucesModal(e) {
+  if (e.target === document.getElementById('cruces-overlay')) cerrarCrucesModalBtn();
 }
 </script>
 </body>
